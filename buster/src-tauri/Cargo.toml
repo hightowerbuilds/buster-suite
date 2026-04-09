@@ -1,0 +1,93 @@
+[package]
+name = "buster"
+version = "0.1.0"
+description = "A canvas-rendered IDE powered by Tauri, Rust, and Pretext"
+authors = ["Luke Hightower"]
+edition = "2021"
+
+[lib]
+name = "buster_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["unstable", "image-png"] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+
+# Terminal
+portable-pty = "0.9"
+vt100 = "0.15"
+
+# Syntax highlighting
+tree-sitter = "0.26"
+tree-sitter-highlight = "0.26"
+tree-sitter-javascript = "0.25"
+tree-sitter-typescript = "0.23"
+tree-sitter-rust = "0.24"
+tree-sitter-python = "0.25"
+tree-sitter-json = "0.24"
+tree-sitter-css = "0.25"
+tree-sitter-html = "0.23"
+tree-sitter-go = "0.23"
+tree-sitter-c = "0.23"
+tree-sitter-cpp = "0.23"
+tree-sitter-bash = "0.23"
+tree-sitter-yaml = "0.7"
+tree-sitter-toml-ng = "0.7"
+# tree-sitter-markdown omitted — v0.7 doesn't bundle highlight queries
+tree-sitter-ruby = "0.23"
+tree-sitter-java = "0.23"
+tree-sitter-lua = "0.5"
+tree-sitter-regex = "0.24"
+# tree-sitter-sql omitted — v0.0.2 doesn't bundle highlight queries
+tree-sitter-xml = "0.7"
+tree-sitter-scss = "1.0"
+tree-sitter-php = "0.23"
+
+# Runtime grammar loading
+libloading = "0.8"
+
+# SSH remote development
+ssh2 = "0.9"
+
+# File explorer
+ignore = "0.4"
+
+# File watcher
+notify = "6"
+
+# LSP
+lsp-types = "0.97"
+
+# AI Agent
+reqwest = { version = "0.12", features = ["json", "stream"] }
+futures-util = "0.3"
+
+# Secure key storage
+keyring = "3"
+
+# Extension system
+wasmtime = "29"
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+toml = "0.8"
+dirs = "6"
+
+# Browser webview
+url = "2"
+
+# Large file support
+memmap2 = "0.9"
+
+# Image support
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3"

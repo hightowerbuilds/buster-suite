@@ -1,0 +1,25 @@
+/* Barrel — imports all component CSS */
+@import "./base.css";
+@import "./sidebar.css";
+@import "./tabbar.css";
+@import "./layout-picker.css";
+@import "./panel-layout.css";
+@import "./terminal.css";
+@import "./find-replace.css";
+@import "./command-palette.css";
+@import "./welcome.css";
+@import "./statusbar.css";
+@import "./settings.css";
+@import "./ai-chat.css";
+@import "./model-gallery.css";
+@import "./api-keys.css";
+@import "./git-panel.css";
+@import "./git-graph.css";
+@import "./extensions.css";
+@import "./dirty-close.css";
+@import "./conflict.css";
+@import "./github.css";
+@import "./blog-preview.css";
+@import "./diff-view.css";
+@import "./problems.css";
+@import "./search-results.css";

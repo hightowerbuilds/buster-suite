@@ -1,0 +1,159 @@
+/* Model Gallery (back side of AI card) */
+
+.ai-gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.ai-gallery-title {
+  font-size: 16px;
+  font-family: "Courier New", Courier, monospace;
+  font-weight: normal;
+  color: var(--text);
+}
+
+.ai-gallery-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ai-gallery-section-label {
+  font-size: 16px;
+  font-family: "Courier New", Courier, monospace;
+  font-weight: normal;
+  color: var(--text-muted);
+  margin: 8px 0 6px;
+}
+
+/* Queue */
+
+.ai-queue {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.ai-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-surface0);
+  border: 1px solid var(--border);
+  font-family: "Courier New", Courier, monospace;
+  font-weight: normal;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.ai-queue-item:hover {
+  border-color: var(--text-muted);
+}
+
+.ai-queue-item.ai-queue-active {
+  border-color: var(--accent);
+}
+
+.ai-queue-item.ai-queue-active .ai-queue-item-label {
+  color: var(--accent);
+}
+
+.ai-queue-item-label {
+  font-size: 16px;
+  color: var(--text);
+}
+
+.ai-queue-item-provider {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.ai-queue-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  font-family: "Courier New", Courier, monospace;
+  font-weight: normal;
+}
+
+.ai-queue-remove:hover {
+  color: var(--red, #f38ba8);
+}
+
+/* Grid */
+
+.ai-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.ai-gallery-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--bg-surface0);
+  border: 1px solid var(--border);
+  font-family: "Courier New", Courier, monospace;
+  font-weight: normal;
+  transition: border-color 0.15s;
+  position: relative;
+}
+
+.ai-gallery-card:hover {
+  border-color: var(--accent);
+}
+
+.ai-gallery-card-queued {
+  opacity: 0.5;
+}
+
+.ai-gallery-add {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-base) 85%, transparent);
+  border: none;
+  color: var(--accent);
+  font-size: 16px;
+  font-family: "Courier New", Courier, monospace;
+  font-weight: normal;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-gallery-card:hover .ai-gallery-add {
+  opacity: 1;
+}
+
+.ai-gallery-in-queue {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.ai-gallery-card-provider {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.ai-gallery-card-name {
+  font-size: 16px;
+  color: var(--text);
+}
+
+.ai-gallery-card-desc {
+  font-size: 16px;
+  color: var(--text-dim);
+}

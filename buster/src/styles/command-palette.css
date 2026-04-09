@@ -1,0 +1,140 @@
+/* Command Palette */
+.palette-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  padding-top: 80px;
+}
+
+.palette {
+  width: 500px;
+  max-height: 400px;
+  background: var(--bg-mantle);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  align-self: flex-start;
+}
+
+.palette-input {
+  background: var(--bg-surface0);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+}
+
+.palette-input:focus-visible {
+  border-bottom-color: var(--accent);
+}
+
+.palette-input::placeholder {
+  color: var(--text-muted);
+}
+
+.palette-results {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 340px;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.palette-item:hover {
+  background: var(--bg-surface0);
+}
+
+.palette-item-active {
+  background: var(--bg-surface0);
+  color: var(--text);
+}
+
+.palette-item-icon {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.palette-item-name {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.palette-item-path {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.palette-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.palette-section-label {
+  padding: 4px 16px;
+  font-size: 11px;
+  font-family: "Courier New", Courier, monospace;
+  font-weight: normal;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.palette-ai-response {
+  padding: 8px 16px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.palette-ai-text {
+  font-size: 13px;
+  font-family: "Courier New", Courier, monospace;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.palette-keybinding {
+  margin-left: auto;
+  padding: 2px 6px;
+  background: var(--bg-surface1);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.palette-cmd-category {
+  color: var(--text-muted);
+}

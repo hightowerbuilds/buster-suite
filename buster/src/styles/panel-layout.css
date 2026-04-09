@@ -1,0 +1,221 @@
+/* Panel Layout */
+.panel-layout {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.panel-full {
+  width: 100%;
+  height: 100%;
+}
+
+/* Active pane border — bright white hairline when focused */
+.panel-full:focus-within,
+.panel-content:focus-within {
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.6);
+}
+
+.panel-columns {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 1px;
+  background: var(--border);
+}
+
+.panel-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  width: 100%;
+  height: 100%;
+  gap: 1px;
+  background: var(--border);
+}
+
+.panel-grid-cell {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+.panel-trio {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 1px;
+  background: var(--border);
+}
+
+.panel-trio-main {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  min-width: 0;
+}
+
+.panel-trio-side {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.panel-trio-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+.panel-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  background: var(--bg-mantle);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.3px;
+}
+
+.panel-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.panel-empty {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-base);
+}
+
+/* Dividers (panel resize handles) */
+.divider {
+  flex-shrink: 0;
+  background: var(--border);
+  z-index: 5;
+  transition: background 0.15s;
+}
+
+.divider:hover {
+  background: var(--accent);
+}
+
+.divider-horizontal {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.divider-vertical {
+  height: 4px;
+  cursor: row-resize;
+}
+
+/* Quint: left column + right 2x2 grid */
+.panel-quint {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 1px;
+  background: var(--border);
+}
+
+.panel-quint-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  min-width: 0;
+}
+
+.panel-quint-grid {
+  flex: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+  min-width: 0;
+}
+
+.panel-quint-cell {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+/* Re-Stack: 3 columns left + 2 stacked panels right */
+.panel-restack {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 1px;
+  background: var(--border);
+}
+
+.panel-restack-cols {
+  flex: 3;
+  display: flex;
+  gap: 1px;
+  min-width: 0;
+}
+
+.panel-restack-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.panel-restack-side {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.panel-restack-side-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+
+/* HQ: 3 columns x 2 rows */
+.panel-hq {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  width: 100%;
+  height: 100%;
+  gap: 1px;
+  background: var(--border);
+}
+
+.panel-hq-cell {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+}

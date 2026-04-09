@@ -1,0 +1,19 @@
+{
+  "_comment": "Performance baselines captured 2026-04-09. Tests fail if any operation exceeds budget_ms. Update baselines after intentional performance changes.",
+  "_machine": "Development MacBook, Node 20, vitest 4.1",
+  "benchmarks": {
+    "displayRows_100_noWrap":   { "baseline_ms": 0.2,  "budget_ms": 5 },
+    "displayRows_5k_noWrap":    { "baseline_ms": 0.4,  "budget_ms": 20 },
+    "displayRows_20k_noWrap":   { "baseline_ms": 0.3,  "budget_ms": 50 },
+    "displayRows_5k_wrap":      { "baseline_ms": 0.5,  "budget_ms": 50 },
+    "displayRows_20k_wrap":     { "baseline_ms": 0.4,  "budget_ms": 150 },
+    "engineLoad_10k":           { "baseline_ms": 1.2,  "budget_ms": 50 },
+    "engineLoadText_10k":       { "baseline_ms": 0.8,  "budget_ms": 50 },
+    "inserts_1000":             { "baseline_ms": 7.3,  "budget_ms": 100 },
+    "backspaces_1000":          { "baseline_ms": 2.6,  "budget_ms": 100 },
+    "undo_500":                 { "baseline_ms": 0.3,  "budget_ms": 200 },
+    "redo_500":                 { "baseline_ms": 0.2,  "budget_ms": 200 },
+    "arrowDown_10000":          { "baseline_ms": 2.8,  "budget_ms": 100 },
+    "wordRight_1000":           { "baseline_ms": 1.1,  "budget_ms": 100 }
+  }
+}

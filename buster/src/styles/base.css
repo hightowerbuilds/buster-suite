@@ -1,0 +1,273 @@
+/* Buster IDE - Catppuccin Mocha Theme */
+
+:root {
+  --bg-base: #1e1e2e;
+  --bg-mantle: #181825;
+  --bg-crust: #11111b;
+  --bg-surface0: #313244;
+  --bg-surface1: #45475a;
+  --bg-surface2: #585b70;
+  --text: #cdd6f4;
+  --text-dim: #a6adc8;
+  --text-muted: #7f849c;
+  --accent: #89b4fa;
+  --accent2: #f5c2e7;
+  --border: #313244;
+  --red: #f38ba8;
+  --green: #a6e3a1;
+  --yellow: #f9e2af;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--text);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.8125rem;
+}
+
+/* IDE Layout */
+.ide-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  outline: none;
+}
+
+.ide-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Editor Area */
+.editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Editor Toolbar */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-crust);
+  border-bottom: 1px solid var(--border);
+  height: 36px;
+  flex-shrink: 0;
+}
+
+/* Editor Content */
+.editor-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-editor {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  cursor: text;
+}
+
+
+/* Buttons */
+.btn {
+  background: var(--accent);
+  color: var(--bg-crust);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: normal;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn-small {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.btn-small:hover {
+  background: var(--bg-surface0);
+  color: var(--text);
+}
+
+/* Dock Bar — full-width bottom navigation */
+.dock-bar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-crust);
+  border-top: 1px solid var(--border);
+  height: 38px;
+  flex-shrink: 0;
+  padding: 0 4px;
+  margin-bottom: 12px;
+  gap: 2px;
+}
+
+.dock-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 16px;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-radius: 0;
+  transition: color 0.1s, background 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+
+.dock-btn:hover {
+  color: var(--text);
+  background: var(--bg-surface0);
+  border-color: var(--border);
+}
+
+.dock-spacer {
+  flex: 1;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-surface1);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-surface2);
+}
+
+/* Accessibility: keyboard focus indicators */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Remove default focus ring for mouse/touch — only show for keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Accessibility: skip link — visible on focus, hidden otherwise */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 200;
+  background: var(--accent);
+  color: var(--bg-crust);
+  padding: 8px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  text-decoration: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+/* Accessibility: screen-reader-only content */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Copy quake — brief shake to confirm clipboard write */
+.copy-quake {
+  animation: quake 0.15s ease-in-out;
+}
+
+@keyframes quake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-3px); }
+  40%  { transform: translateX(3px); }
+  60%  { transform: translateX(-2px); }
+  80%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+/* Accessibility: live region for screen reader announcements */
+#a11y-live-region {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Accessibility: respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Breadcrumb bar ──────────────────────────────────────────── */
+
+.breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  padding: 2px 12px;
+  background: var(--bg-mantle);
+  border-bottom: 1px solid var(--bg-surface0);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12px;
+  min-height: 22px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.breadcrumb-sep {
+  color: var(--text-muted);
+  margin: 0 4px;
+}
+
+.breadcrumb-seg {
+  color: var(--text-dim);
+}
+
+.breadcrumb-active {
+  color: var(--text-main);
+}

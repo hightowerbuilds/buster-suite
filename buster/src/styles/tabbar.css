@@ -1,0 +1,142 @@
+/* Tab Bar */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  height: 36px;
+  min-width: 0;
+}
+
+.tab-list {
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+  height: 100%;
+  min-width: 0;
+}
+
+.tab-list::-webkit-scrollbar {
+  height: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 100%;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 0;
+  user-select: none;
+}
+
+.tab:hover {
+  color: var(--text-dim);
+}
+
+.tab-active {
+  background: var(--bg-base);
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+}
+
+.tab-terminal.tab-active {
+  border-bottom-color: var(--green);
+}
+
+.tab-icon {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+.tab-terminal .tab-icon {
+  color: var(--green);
+}
+
+.tab-ai .tab-icon {
+  color: var(--accent2);
+}
+
+.tab-ai.tab-active {
+  border-bottom-color: var(--accent2);
+}
+
+.tab-name {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 0;
+  opacity: 0;
+}
+
+.tab:hover .tab-close,
+.tab-active .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: var(--bg-surface1);
+  color: var(--text);
+}
+
+.tab-new-terminal {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 10px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.tab-new-terminal:hover {
+  color: var(--text);
+  background: var(--bg-surface0);
+}
+
+/* Grouped tabs (part of a multi-panel layout) */
+.tab-grouped {
+  border-top: 2px solid var(--accent);
+}
+
+.tab-grouped.tab-active {
+  border-top: 2px solid var(--accent);
+}
+
+/* Tab drag states */
+.tab-dragging {
+  opacity: 0.4;
+}
+
+.tab-drop-target {
+  border-left: 2px solid var(--accent);
+}
+
+.tab-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 200;
+  background: var(--bg-surface0);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 0;
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--accent);
+  white-space: nowrap;
+}

@@ -1,0 +1,73 @@
+/* Status Bar */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  background: var(--accent);
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.status-left, .status-right {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.status-item {
+  font-size: 11px;
+  color: var(--bg-crust);
+  font-weight: normal;
+}
+
+/* Status bar branch */
+.status-branch {
+  color: var(--accent);
+}
+
+/* LSP status indicators */
+.status-lsp-active {
+  color: var(--green);
+}
+.status-lsp-starting {
+  color: var(--yellow);
+}
+.status-lsp-error {
+  color: var(--red);
+}
+
+/* Sync button */
+.status-sync-btn {
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--bg-crust);
+  background: transparent;
+  border: 1px solid var(--bg-crust);
+  border-radius: 3px;
+  padding: 0 6px;
+  height: 18px;
+  cursor: pointer;
+  line-height: 16px;
+}
+.status-sync-btn:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+.status-sync-btn:disabled,
+.status-sync-btn.syncing {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Diagnostic counts */
+.status-diagnostics {
+  display: flex;
+  gap: 8px;
+}
+.status-errors {
+  color: var(--bg-crust);
+}
+.status-warnings {
+  color: var(--bg-crust);
+}

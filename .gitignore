@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+target/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Bun
+bun.lock
+
+# Rust
+Cargo.lock
+
+# Logs
+*.log
