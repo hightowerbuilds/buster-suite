@@ -20,7 +20,7 @@
 
 .manual-title {
   font-family: "Courier New", monospace;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: normal;
   color: var(--text);
   margin: 0;
@@ -32,7 +32,7 @@
 
 .manual-section h2 {
   font-family: "Courier New", monospace;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: normal;
   color: var(--accent);
   margin: 0 0 8px;
@@ -42,7 +42,7 @@
 
 .manual-section p {
   font-family: "Courier New", monospace;
-  font-size: 12px;
+  font-size: 16px;
   color: var(--text-subtext1);
   line-height: 1.6;
   margin: 0 0 8px;
@@ -50,7 +50,7 @@
 
 .manual-section code {
   font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
+  font-size: 16px;
   background: var(--bg-surface0);
   padding: 1px 5px;
   border-radius: 3px;
@@ -59,7 +59,7 @@
 
 .manual-section kbd {
   font-family: "Courier New", monospace;
-  font-size: 11px;
+  font-size: 16px;
   background: var(--bg-surface0);
   border: 1px solid var(--bg-surface1);
   border-radius: 3px;
@@ -75,7 +75,7 @@
 
 .manual-table th {
   font-family: "Courier New", monospace;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: normal;
   color: var(--text-overlay2);
   text-align: left;
@@ -85,7 +85,7 @@
 
 .manual-table td {
   font-family: "Courier New", monospace;
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-subtext1);
   padding: 3px 8px;
   border-bottom: 1px solid var(--bg-mantle);
