@@ -224,7 +224,6 @@ const App: Component = () => {
               errorCount={actions.diagnosticCounts().errors}
               warningCount={actions.diagnosticCounts().warnings}
               onDiagnosticsClick={() => actions.jumpToDiagnostic(1)}
-              onManualClick={() => setStore("tourActive", true)}
             />
           </Show>
         </div>
@@ -235,6 +234,7 @@ const App: Component = () => {
         <button class="dock-btn" onClick={actions.createSettingsTab} aria-label="Open Settings">Settings</button>
         <button class="dock-btn" onClick={actions.createLegendTab} aria-label="Open Hotkey Legend">Legend</button>
         <button class="dock-btn" onClick={actions.createAiTab} aria-label="Open AI Agent">Models</button>
+        <button class="dock-btn" onClick={() => setStore("tourActive", true)} aria-label="Open Manual">Manual</button>
         <div class="dock-spacer" />
         <LayoutPicker
           current={store.layoutMode}
