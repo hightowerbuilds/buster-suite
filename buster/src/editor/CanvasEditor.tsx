@@ -944,6 +944,17 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
         "aria-multiline": "true",
         onKeyDown: handleKeyDown,
         onInput: handleInput,
+        onPaste: (e: ClipboardEvent) => {
+          // Handle paste events from the native responder chain (Wispr Flow,
+          // macOS Dictation, and other voice tools that simulate Cmd+V via CGEvent).
+          // These may arrive as native paste events without triggering keydown.
+          e.preventDefault();
+          const text = e.clipboardData?.getData("text/plain");
+          if (text) {
+            engine.insert(text);
+            clearHighlightCache();
+          }
+        },
         onFocus: () => setIsFocused(true),
         onBlur: () => setIsFocused(false),
         onCompositionStart: () => { isComposing = true; },

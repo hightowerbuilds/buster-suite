@@ -55,21 +55,19 @@ pub fn run() {
                 &PredefinedMenuItem::close_window(app, Some("Close Window"))?,
             ])?;
 
-            let undo = MenuItem::with_id(app, "undo", "Undo", true, Some("CmdOrCtrl+Z"))?;
-            let redo = MenuItem::with_id(app, "redo", "Redo", true, Some("CmdOrCtrl+Shift+Z"))?;
-            let cut = MenuItem::with_id(app, "cut", "Cut", true, Some("CmdOrCtrl+X"))?;
-            let copy = MenuItem::with_id(app, "copy", "Copy", true, Some("CmdOrCtrl+C"))?;
-            let paste = MenuItem::with_id(app, "paste", "Paste", true, Some("CmdOrCtrl+V"))?;
-            let select_all = MenuItem::with_id(app, "select_all", "Select All", true, Some("CmdOrCtrl+A"))?;
-
+            // Use PredefinedMenuItems so macOS registers native selectors (undo:, cut:, copy:, paste:, selectAll:).
+            // This is critical for compatibility with voice dictation tools (Wispr Flow, macOS Dictation)
+            // which inject text via simulated Cmd+V through the macOS responder chain.
+            // PredefinedMenuItems route through the native NSResponder paste: selector,
+            // while custom MenuItems with accelerators only intercept the key combo from real keyboard events.
             let edit_menu = Submenu::with_items(app, "Edit", true, &[
-                &undo,
-                &redo,
+                &PredefinedMenuItem::undo(app, Some("Undo"))?,
+                &PredefinedMenuItem::redo(app, Some("Redo"))?,
                 &PredefinedMenuItem::separator(app)?,
-                &cut,
-                &copy,
-                &paste,
-                &select_all,
+                &PredefinedMenuItem::cut(app, Some("Cut"))?,
+                &PredefinedMenuItem::copy(app, Some("Copy"))?,
+                &PredefinedMenuItem::paste(app, Some("Paste"))?,
+                &PredefinedMenuItem::select_all(app, Some("Select All"))?,
             ])?;
 
             let menu = Menu::with_items(app, &[&file_menu, &edit_menu])?;
