@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use std::sync::{mpsc, Mutex};
 use serde::{Deserialize, Serialize};
 
 /// Debug events forwarded from the DAP reader thread to the frontend.
@@ -45,13 +45,13 @@ pub enum DebugEvent {
 /// no unsafe Send/Sync impls — fixing the UB in the current code).
 pub struct EventChannel {
     sender: mpsc::Sender<DebugEvent>,
-    receiver: mpsc::Receiver<DebugEvent>,
+    receiver: Mutex<mpsc::Receiver<DebugEvent>>,
 }
 
 impl EventChannel {
     pub fn new() -> Self {
         let (sender, receiver) = mpsc::channel();
-        Self { sender, receiver }
+        Self { sender, receiver: Mutex::new(receiver) }
     }
 
     /// Get a clone of the sender for the reader thread.
@@ -61,14 +61,16 @@ impl EventChannel {
 
     /// Try to receive a pending event (non-blocking).
     pub fn try_recv(&self) -> Option<DebugEvent> {
-        self.receiver.try_recv().ok()
+        self.receiver.lock().ok()?.try_recv().ok()
     }
 
     /// Drain all pending events.
     pub fn drain(&self) -> Vec<DebugEvent> {
         let mut events = Vec::new();
-        while let Ok(event) = self.receiver.try_recv() {
-            events.push(event);
+        if let Ok(receiver) = self.receiver.lock() {
+            while let Ok(event) = receiver.try_recv() {
+                events.push(event);
+            }
         }
         events
     }

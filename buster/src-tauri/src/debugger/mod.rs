@@ -6,12 +6,26 @@ use std::sync::{Arc, Mutex, RwLock};
 use client::DapClient;
 use serde::{Deserialize, Serialize};
 
+// buster-dap integration — safe event channel, adapter registry, breakpoint persistence
+// Types are namespaced to avoid collisions with locally defined StackFrame/Variable
+pub mod dap_integration {
+    pub use buster_dap::{
+        AdapterRegistry, BreakpointStore, EventChannel, DebugEvent,
+    };
+}
+
 /// Manages debug adapter processes and debug sessions.
 pub struct DebugManager {
     /// Active debug session (only one at a time for now)
     session: Mutex<Option<DebugSession>>,
-    /// Breakpoints per file path
+    /// Breakpoints per file path (legacy — being migrated to BreakpointStore)
     breakpoints: RwLock<HashMap<String, Vec<SourceBreakpoint>>>,
+    /// buster-dap: persistent breakpoint store (serializable)
+    pub bp_store: Mutex<dap_integration::BreakpointStore>,
+    /// buster-dap: adapter registry
+    pub adapter_registry: dap_integration::AdapterRegistry,
+    /// buster-dap: event channel for safe DAP event forwarding
+    pub events: dap_integration::EventChannel,
 }
 
 pub struct DebugSession {
@@ -21,6 +35,7 @@ pub struct DebugSession {
 }
 
 // DapClient holds a Child process and Mutex<Box<dyn Write + Send>> — make it Send+Sync
+// TODO: Replace with Arc-based design from buster-dap to eliminate this unsafe
 unsafe impl Send for DapClient {}
 unsafe impl Sync for DapClient {}
 
@@ -60,6 +75,9 @@ impl DebugManager {
         DebugManager {
             session: Mutex::new(None),
             breakpoints: RwLock::new(HashMap::new()),
+            bp_store: Mutex::new(dap_integration::BreakpointStore::new()),
+            adapter_registry: dap_integration::AdapterRegistry::with_defaults(),
+            events: dap_integration::EventChannel::new(),
         }
     }
 

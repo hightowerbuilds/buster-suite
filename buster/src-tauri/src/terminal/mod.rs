@@ -5,6 +5,11 @@ use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+// buster-terminal-pro integration — runtime themes, CJK width, scrollback management
+pub mod term_pro {
+    pub use buster_terminal_pro::{TerminalTheme, ThemeColor, ScrollbackBuffer, ScrollbackConfig, TerminalSearch, HyperlinkParser};
+}
+
 #[derive(Clone, Serialize, PartialEq)]
 pub struct TermCell {
     pub ch: String,

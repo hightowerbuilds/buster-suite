@@ -7,6 +7,73 @@ use tokio::io::AsyncReadExt;
 use crate::workspace;
 use super::agent::ApprovalManager;
 
+// Buster sandbox integration — allowlist-based command execution
+use buster_sandbox::{SandboxConfig, ExecutionRequest, ExitStatus, ResourceLimits, execute as sandbox_execute};
+
+/// Create a sandbox config for the current workspace.
+fn sandbox_config(workspace: &str) -> SandboxConfig {
+    SandboxConfig::new(workspace)
+}
+
+/// Execute a command through the buster-sandbox.
+/// Falls back to the legacy blocklist path if sandbox execution fails.
+fn sandboxed_run(cmd_str: &str, workspace: &str, cwd: &str) -> String {
+    let config = sandbox_config(workspace);
+
+    // Parse the command string into program + args
+    let parts: Vec<&str> = cmd_str.split_whitespace().collect();
+    if parts.is_empty() {
+        return "Error: empty command".to_string();
+    }
+
+    let program = parts[0];
+    let args: Vec<String> = parts[1..].iter().map(|s| s.to_string()).collect();
+
+    let request = ExecutionRequest {
+        program: program.to_string(),
+        args,
+        working_dir: PathBuf::from(cwd),
+        env: std::collections::HashMap::new(),
+        stdin: None,
+        capabilities: vec![],
+        limits: ResourceLimits::default(),
+    };
+
+    match sandbox_execute(&config, &request) {
+        Ok(result) => {
+            match result.status {
+                ExitStatus::Denied => {
+                    let reason = String::from_utf8_lossy(&result.stderr);
+                    format!("Blocked by sandbox: {}", reason)
+                }
+                ExitStatus::Timeout => "Error: command timed out".to_string(),
+                ExitStatus::ResourceLimit => "Error: command exceeded resource limits".to_string(),
+                ExitStatus::Code(_) => {
+                    let stdout = String::from_utf8_lossy(&result.stdout);
+                    let stderr = String::from_utf8_lossy(&result.stderr);
+                    let mut output = String::new();
+                    if !stdout.is_empty() {
+                        output.push_str(&stdout);
+                    }
+                    if !stderr.is_empty() {
+                        if !output.is_empty() { output.push('\n'); }
+                        output.push_str("stderr: ");
+                        output.push_str(&stderr);
+                    }
+                    if output.len() > 20_000 {
+                        format!("{}\n\n... (truncated)", &output[..20_000])
+                    } else if output.is_empty() {
+                        "(no output)".to_string()
+                    } else {
+                        output
+                    }
+                }
+            }
+        }
+        Err(e) => format!("Sandbox error: {}", e),
+    }
+}
+
 /// Dangerous command patterns — string matching layer.
 const BLOCKED_PATTERNS: &[&str] = &[
     // Destructive filesystem
@@ -251,44 +318,18 @@ pub fn execute_tool(name: &str, input: &Value, workspace: &str) -> String {
         }
         "run_command" => {
             let cmd = input["command"].as_str().unwrap_or("");
+            // Legacy safety check (kept as defense-in-depth alongside sandbox)
             if let Err(e) = is_command_safe(cmd) {
                 return e;
             }
 
-            // Force cwd to be within workspace
             let cwd = input["cwd"].as_str().unwrap_or(workspace);
             let working_dir = match validate_path(cwd, workspace) {
-                Ok(p) => p,
-                Err(_) => PathBuf::from(workspace), // fallback to workspace root
+                Ok(p) => p.to_string_lossy().to_string(),
+                Err(_) => workspace.to_string(),
             };
 
-            let mut command = Command::new("sh");
-            command.args(["-c", cmd]);
-            command.current_dir(&working_dir);
-
-            match command.output() {
-                Ok(output) => {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    let mut result = String::new();
-                    if !stdout.is_empty() {
-                        result.push_str(&stdout);
-                    }
-                    if !stderr.is_empty() {
-                        if !result.is_empty() { result.push('\n'); }
-                        result.push_str("stderr: ");
-                        result.push_str(&stderr);
-                    }
-                    if result.len() > 20_000 {
-                        format!("{}\n\n... (truncated)", &result[..20_000])
-                    } else if result.is_empty() {
-                        "(no output)".to_string()
-                    } else {
-                        result
-                    }
-                }
-                Err(e) => format!("Error running command: {}", e),
-            }
+            sandboxed_run(cmd, workspace, &working_dir)
         }
         _ => format!("Unknown tool: {}", name),
     }

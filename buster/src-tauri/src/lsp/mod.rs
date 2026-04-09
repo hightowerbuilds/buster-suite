@@ -5,6 +5,15 @@ use std::sync::{mpsc, Mutex, RwLock};
 
 use client::{LspClient, LspDiagnostic};
 
+// buster-lsp-manager integration — server registry, document state, URI encoding
+// Namespaced to avoid collisions with existing types
+pub mod lsp_pro {
+    pub use buster_lsp_manager::{
+        ServerRegistry, LanguageServerConfig, DocumentState, TextEdit,
+        path_to_lsp_uri, lsp_uri_to_path,
+    };
+}
+
 /// Maps file extensions to (language_id, command, args)
 fn server_registry() -> HashMap<&'static str, (&'static str, &'static str, Vec<&'static str>)> {
     let mut m = HashMap::new();

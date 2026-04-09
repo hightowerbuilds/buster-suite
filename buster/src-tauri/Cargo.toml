@@ -89,5 +89,13 @@ memmap2 = "0.9"
 # Image support
 base64 = "0.22"
 
+# Buster supporting libraries
+buster-sandbox = { path = "../../buster-sandbox" }
+buster-lsp-manager = { path = "../../buster-lsp-manager" }
+buster-syntax = { path = "../../buster-syntax" }
+buster-dap = { path = "../../buster-dap" }
+buster-terminal-pro = { path = "../../buster-terminal-pro" }
+buster-remote = { path = "../../buster-remote" }
+
 [dev-dependencies]
 tempfile = "3"

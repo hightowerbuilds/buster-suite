@@ -5,9 +5,21 @@ use std::net::TcpStream;
 use std::path::Path;
 use std::sync::Mutex;
 
+// buster-remote integration — connection pool, workspace sync, config
+pub mod remote_pro {
+    pub use buster_remote::{
+        ConnectionPool, ConnectionState, WorkspaceSync, SyncState,
+        RemoteHost, AuthMethod, SshConfig,
+    };
+}
+
 /// Manages SSH connections to remote hosts.
 pub struct RemoteManager {
     session: Mutex<Option<RemoteSession>>,
+    /// buster-remote: connection pool for multi-host support
+    pub pool: Mutex<remote_pro::ConnectionPool>,
+    /// buster-remote: workspace sync state
+    pub sync: Mutex<Option<remote_pro::WorkspaceSync>>,
 }
 
 struct RemoteSession {
@@ -44,6 +56,8 @@ impl RemoteManager {
     pub fn new() -> Self {
         RemoteManager {
             session: Mutex::new(None),
+            pool: Mutex::new(remote_pro::ConnectionPool::default()),
+            sync: Mutex::new(None),
         }
     }
 

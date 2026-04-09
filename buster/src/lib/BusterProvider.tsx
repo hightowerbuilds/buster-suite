@@ -8,6 +8,7 @@ import { type Component, type JSX, createEffect, onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { BusterContext, type BusterContextValue, type BusterActions, type EngineMap } from "./buster-context";
 import type { BusterStoreState } from "./store-types";
+import { basename } from "buster-path";
 import { type Tab, isImageFile } from "./tab-types";
 import type { LayoutMode } from "../ui/LayoutPicker";
 import type { EditorEngine } from "../editor/engine";
@@ -303,7 +304,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
         chunks.push(...lines);
       }
       const content = chunks.join("\n");
-      const fileName = path.split("/").pop() || path;
+      const fileName = basename(path);
       largeFileClose(path).catch(() => {});
       return { content, fileName, filePath: path };
     }
@@ -319,7 +320,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     if (isImageFile(path)) {
       setStore("fileTabCounter", c => c + 1);
       const tabId = `file_${store.fileTabCounter}`;
-      const fileName = path.split("/").pop() || path;
+      const fileName = basename(path);
       const newTab: Tab = { id: tabId, name: fileName, path, dirty: false, type: "image" };
       setStore("tabs", [...store.tabs, newTab]);
       switchToTab(tabId);

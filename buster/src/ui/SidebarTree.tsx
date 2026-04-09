@@ -2,6 +2,7 @@ import { Component, createSignal, createEffect, on, For, Show } from "solid-js";
 import type { DirEntry } from "../lib/ipc";
 import { listDirectory, moveEntry, createFile, createDirectory, renameEntry, deleteEntry } from "../lib/ipc";
 import { createFocusTrap } from "../lib/a11y";
+import { join, relativeTo, isDescendant } from "buster-path";
 
 export interface TreeNode extends DirEntry {
   children?: TreeNode[];
@@ -115,7 +116,7 @@ export const TreeItem: Component<{
     const trimmed = name.trim();
     props.onCreatingChildDone?.();
     if (!trimmed) return;
-    const fullPath = props.node.path + "/" + trimmed;
+    const fullPath = join(props.node.path, trimmed);
     try {
       if (type === "file") {
         await createFile(fullPath);
@@ -196,7 +197,7 @@ export const TreeItem: Component<{
     if (dragActive && props.node.is_dir && dragNode
         && dragNode.path !== props.node.path
         && dragNode.parentPath !== props.node.path
-        && !props.node.path.startsWith(dragNode.path + "/")) {
+        && !isDescendant(dragNode.path, props.node.path)) {
       setDropTarget(true);
     }
   }
@@ -248,9 +249,7 @@ export const TreeItem: Component<{
         onContextMenu={(e) => {
           e.preventDefault();
           const root = props.workspaceRoot || "";
-          const rel = root && props.node.path.startsWith(root)
-            ? props.node.path.slice(root.length).replace(/^\//, "")
-            : props.node.path;
+          const rel = root ? relativeTo(root, props.node.path) : props.node.path;
           setCtxMenu({ x: e.clientX, y: e.clientY, path: props.node.path, relativePath: rel, name: props.node.name, isDir: props.node.is_dir, parentPath: props.node.parentPath, onRename: startRename, onDeleted: () => { if (props.node.parentPath) setRefreshDir(props.node.parentPath); } });
         }}
       >

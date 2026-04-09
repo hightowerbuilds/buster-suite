@@ -5,6 +5,14 @@ use std::sync::RwLock;
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 use libloading;
 
+// buster-syntax integration — grammar registry, incremental types, viewport highlighting
+pub mod syntax_pro {
+    pub use buster_syntax::{
+        GrammarRegistry, GrammarConfig, EditRange, ViewportRange,
+        HighlightSpan, HighlightTheme, TokenKind,
+    };
+}
+
 // Highlight names that map to our theme colors
 const HIGHLIGHT_NAMES: &[&str] = &[
     "attribute",
