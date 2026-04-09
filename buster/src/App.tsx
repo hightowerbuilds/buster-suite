@@ -7,7 +7,7 @@ import CommandPalette from "./ui/CommandPalette";
 import PanelLayout from "./ui/PanelLayout";
 import LayoutPicker from "./ui/LayoutPicker";
 import WelcomeCanvas from "./ui/WelcomeCanvas";
-import TourCanvas from "./ui/TourCanvas";
+import Manual from "./ui/Manual";
 import CanvasToasts from "./ui/CanvasToasts";
 import DirtyCloseDialog from "./ui/DirtyCloseDialog";
 import ExternalChangeDialog from "./ui/ExternalChangeDialog";
@@ -201,11 +201,10 @@ const App: Component = () => {
               renderPanel={renderPanel}
               welcome={
                 store.tourActive
-                  ? <TourCanvas onClose={() => setStore("tourActive", false)} />
+                  ? <Manual onClose={() => setStore("tourActive", false)} />
                   : <WelcomeCanvas
                       recentFolders={store.settings.recent_folders}
                       onOpenFolder={(path) => actions.openWorkspace(path)}
-                      onStartTour={() => setStore("tourActive", true)}
                     />
               }
             />
@@ -225,6 +224,7 @@ const App: Component = () => {
               errorCount={actions.diagnosticCounts().errors}
               warningCount={actions.diagnosticCounts().warnings}
               onDiagnosticsClick={() => actions.jumpToDiagnostic(1)}
+              onManualClick={() => setStore("tourActive", true)}
             />
           </Show>
         </div>
@@ -248,7 +248,7 @@ const App: Component = () => {
         onFileSelect={actions.handleFileSelect}
         onGoToLine={handleGoToLine}
         onNewTerminal={actions.createTerminalTab}
-        onStartTour={() => setStore("tourActive", true)}
+        onOpenManual={() => setStore("tourActive", true)}
         onNewAiChat={actions.createAiTab}
         onGitGraph={actions.createGitTab}
         initialQuery={store.paletteInitialQuery}

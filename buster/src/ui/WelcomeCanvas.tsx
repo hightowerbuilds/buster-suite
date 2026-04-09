@@ -87,7 +87,6 @@ interface RainDrop {
 interface WelcomeCanvasProps {
   recentFolders?: string[];
   onOpenFolder?: (path: string) => void;
-  onStartTour?: () => void;
 }
 
 const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
@@ -344,44 +343,15 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
         ctx.fillRect(cursorX, subY, 2, 16);
       }
 
-      // "Take the tour" button
+      // Recent folders
       if (subtitleProgress >= SUBTITLE.length) {
         tourBtnProgress = Math.min(tourBtnProgress + 0.06, 1);
-        const btnAlpha = tourBtnProgress;
+        tourBtnHitArea = null;
 
-        ctx.font = '16px "Courier New", Courier, monospace';
-        ctx.textAlign = "center";
-        const btnTextW = ctx.measureText(TOUR_LABEL).width;
-        const btnPadX = 18;
-        const btnPadY = 8;
-        const btnW = btnTextW + btnPadX * 2;
-        const btnH = 16 + btnPadY * 2;
-        const btnX = w / 2 - btnW / 2;
-        const btnY = subY + 30;
-
-        tourBtnHitArea = { x: btnX, y: btnY, w: btnW, h: btnH };
-        const isHover = mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-
-        // Button border
-        const borderColor = isHover ? palette[0] : `rgba(88, 91, 112, ${btnAlpha * 0.7})`;
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(btnX, btnY, btnW, btnH, 4);
-        ctx.stroke();
-
-        // Button text
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = isHover
-          ? `rgba(232, 237, 242, ${btnAlpha * 0.95})`
-          : `rgba(166, 173, 200, ${btnAlpha * 0.7})`;
-        ctx.fillText(TOUR_LABEL, w / 2, btnY + btnH / 2);
-
-        // Recent folders (inline)
         const folders = props.recentFolders ?? [];
         if (folders.length > 0 && tourBtnProgress > 0.5) {
           const folderAlpha = Math.min(1, (tourBtnProgress - 0.5) * 2);
-          const fy = btnY + btnH + 25;
+          const fy = subY + 35;
           folderHitAreas = [];
 
           ctx.font = '16px "JetBrains Mono", monospace';
@@ -430,10 +400,7 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
     const overFolder = folderHitAreas.some(
       (a) => mouseX >= a.x && mouseX <= a.x + a.w && mouseY >= a.y && mouseY <= a.y + a.h
     );
-    const overTour = tourBtnHitArea != null &&
-      mouseX >= tourBtnHitArea.x && mouseX <= tourBtnHitArea.x + tourBtnHitArea.w &&
-      mouseY >= tourBtnHitArea.y && mouseY <= tourBtnHitArea.y + tourBtnHitArea.h;
-    canvasRef.style.cursor = (overFolder || overTour) ? "pointer" : "default";
+    canvasRef.style.cursor = overFolder ? "pointer" : "default";
   }
 
   function handleClick(e: MouseEvent) {
@@ -441,13 +408,6 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
     const rect = canvasRef.getBoundingClientRect();
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
-    // Tour button
-    if (tourBtnHitArea != null &&
-      cx >= tourBtnHitArea.x && cx <= tourBtnHitArea.x + tourBtnHitArea.w &&
-      cy >= tourBtnHitArea.y && cy <= tourBtnHitArea.y + tourBtnHitArea.h) {
-      props.onStartTour?.();
-      return;
-    }
     for (const area of folderHitAreas) {
       if (cx >= area.x && cx <= area.x + area.w && cy >= area.y && cy <= area.y + area.h) {
         props.onOpenFolder?.(area.path);

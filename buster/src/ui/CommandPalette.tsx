@@ -12,7 +12,7 @@ interface CommandPaletteProps {
   onFileSelect: (path: string) => void;
   onGoToLine?: (line: number, col: number) => void;
   onNewTerminal: () => void;
-  onStartTour?: () => void;
+  onOpenManual?: () => void;
   onNewAiChat?: () => void;
   onGitGraph?: () => void;
   initialQuery?: string;
@@ -63,7 +63,7 @@ const CommandPalette: Component<CommandPaletteProps> = (props) => {
 
   const commands = [
     { name: "New Terminal", action: () => { props.onNewTerminal(); props.onClose(); } },
-    { name: "Start Guided Tour", action: () => { props.onStartTour?.(); props.onClose(); } },
+    { name: "Open Manual", action: () => { props.onOpenManual?.(); props.onClose(); } },
     { name: "AI Agent", action: () => { props.onNewAiChat?.(); props.onClose(); } },
     { name: "Git", action: () => { props.onGitGraph?.(); props.onClose(); } },
   ];

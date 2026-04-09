@@ -15,6 +15,7 @@ interface StatusBarProps {
   errorCount?: number;
   warningCount?: number;
   onDiagnosticsClick?: () => void;
+  onManualClick?: () => void;
 }
 
 const LSP_LABELS: Record<LspState, string> = {
@@ -85,6 +86,14 @@ const StatusBar: Component<StatusBarProps> = (props) => {
         </span>
         <span class="status-item">{props.totalLines} lines</span>
         <span class="status-item">{props.fileName || "untitled"}</span>
+        <button
+          class="status-manual-btn"
+          onClick={() => props.onManualClick?.()}
+          title="Open the Buster manual"
+          aria-label="Open manual"
+        >
+          Manual
+        </button>
       </div>
     </div>
   );
