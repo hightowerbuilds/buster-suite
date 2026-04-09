@@ -39,6 +39,7 @@ export interface BusterActions {
   createSettingsTab(): void;
   createExtensionsTab(): void;
   createManualTab(): void;
+  createDebugTab(): void;
   createProblemsTab(): void;
   popOutSidebar(): void;
   handleTermIdReady(tabId: string, ptyId: string): void;

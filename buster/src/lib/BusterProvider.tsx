@@ -385,6 +385,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
   function createSettingsTab() { openSingletonTab("settings", "settings_tab", "Settings"); }
   function createExtensionsTab() { openSingletonTab("extensions", "extensions_tab", "Extensions"); }
   function createManualTab() { openSingletonTab("manual", "manual_tab", "Manual"); }
+  function createDebugTab() { openSingletonTab("debug", "debug_tab", "Debug"); }
   function createProblemsTab() { openSingletonTab("problems", "problems_tab", "Problems"); }
   function createSearchTab() { openSingletonTab("search-results", "search_tab", "Search"); }
 
@@ -750,7 +751,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
           setStore("tabs", produce(tabs => {
             tabs.push({ id: tabId, name: stab.name || "Terminal", path: "", dirty: false, type: "terminal" });
           }));
-        } else if (["ai", "settings", "git", "extensions", "manual", "github", "explorer"].includes(stab.type)) {
+        } else if (["ai", "settings", "git", "extensions", "manual", "debug", "github", "explorer"].includes(stab.type)) {
           setStore("tabs", produce(tabs => {
             tabs.push({ id: stab.id, name: stab.name, path: "", dirty: false, type: stab.type as Tab["type"] });
           }));
@@ -790,6 +791,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     createSettingsTab,
     createExtensionsTab,
     createManualTab,
+    createDebugTab,
     createProblemsTab,
     popOutSidebar,
     handleTermIdReady,

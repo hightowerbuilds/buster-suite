@@ -230,6 +230,7 @@ const App: Component = () => {
         <button class="dock-btn" onClick={actions.createExtensionsTab} aria-label="Open Extensions panel">Extensions</button>
         <button class="dock-btn" onClick={actions.createSettingsTab} aria-label="Open Settings">Settings</button>
         <button class="dock-btn" onClick={actions.createAiTab} aria-label="Open AI Agent">Models</button>
+        <button class="dock-btn" onClick={actions.createDebugTab} aria-label="Open Debugger">Debug</button>
         <button class="dock-btn" onClick={actions.createManualTab} aria-label="Open Manual">Manual</button>
         <div class="dock-spacer" />
         <LayoutPicker

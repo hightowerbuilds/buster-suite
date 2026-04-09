@@ -11,6 +11,7 @@ import SettingsPanel from "./SettingsPanel";
 import GitPage from "./GitPage";
 import ExtensionsPage from "./ExtensionsPage";
 import ManualTab from "./ManualTab";
+import DebugPanel from "./DebugPanel";
 import ProblemsPanel from "./ProblemsPanel";
 import SearchResultsPanel from "./SearchResultsPanel";
 import Sidebar from "./Sidebar";
@@ -156,6 +157,10 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
 
     if (tab.type === "manual") {
       return <ManualTab />;
+    }
+
+    if (tab.type === "debug") {
+      return <DebugPanel />;
     }
 
     if (tab.type === "explorer") {
