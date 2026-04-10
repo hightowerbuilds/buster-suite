@@ -36,7 +36,7 @@ const TEAMS = [
 ];
 
 const CYCLE_DURATION = 60; // frames per team (~1 second at 60fps)
-const TRANSITION_FRAMES = 30; // smooth fade between palettes
+const TRANSITION_FRAMES = 0; // no crossfade — hard cut between palettes
 
 // Module-level cache for sampled pixel positions — survives component remounts
 // so we don't re-allocate a 2000x500 canvas + getImageData every time.
