@@ -11,13 +11,17 @@
 //! - Scrollback memory management
 
 mod hyperlink;
+mod pty_monitor;
 mod scrollback;
 mod search;
+mod sixel;
 mod theme;
 mod types;
 
 pub use hyperlink::{Hyperlink, HyperlinkParser};
+pub use pty_monitor::PtyMonitor;
 pub use scrollback::{ScrollbackBuffer, ScrollbackConfig};
 pub use search::TerminalSearch;
+pub use sixel::{SixelImage, SixelParser};
 pub use theme::{TerminalTheme, ThemeColor};
 pub use types::{BellMode, CellWidth, TerminalError};
