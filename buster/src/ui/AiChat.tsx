@@ -234,7 +234,7 @@ const AiChat: Component<AiChatProps> = (props) => {
                 )}
               </For>
             </Show>
-            <button class="ai-flip-btn" onClick={() => setFlipped(true)}>Models</button>
+            <button class="ai-flip-btn" onClick={() => setFlipped(true)}>Dashboard</button>
           </div>
         </div>
 
