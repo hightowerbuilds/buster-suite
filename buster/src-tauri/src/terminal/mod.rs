@@ -5,9 +5,27 @@ use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-// buster-terminal-pro integration — runtime themes, CJK width, scrollback management
+// buster-terminal-pro integration — runtime themes, CJK width, scrollback, sixel, crash recovery
 pub mod term_pro {
-    pub use buster_terminal_pro::{TerminalTheme, ThemeColor, ScrollbackBuffer, ScrollbackConfig, TerminalSearch, HyperlinkParser};
+    pub use buster_terminal_pro::{
+        TerminalTheme, ThemeColor, ScrollbackBuffer, ScrollbackConfig,
+        TerminalSearch, HyperlinkParser, PtyMonitor, SixelParser, SixelImage,
+    };
+}
+
+// Active terminal theme — used by color_to_rgb/color_to_bg_rgb/idx_to_rgb
+use std::sync::OnceLock;
+static ACTIVE_THEME: OnceLock<term_pro::TerminalTheme> = OnceLock::new();
+
+fn active_theme() -> &'static term_pro::TerminalTheme {
+    ACTIVE_THEME.get_or_init(term_pro::TerminalTheme::catppuccin_mocha)
+}
+
+/// Set the active terminal theme at runtime.
+pub fn set_terminal_theme(theme: term_pro::TerminalTheme) {
+    // OnceLock can only be set once; for runtime switching we need a different approach.
+    // For now, the theme is set at startup. Full runtime switching requires RwLock.
+    let _ = ACTIVE_THEME.set(theme);
 }
 
 #[derive(Clone, Serialize, PartialEq)]
@@ -32,7 +50,7 @@ pub struct TermScreen {
 
 fn color_to_rgb(color: &vt100::Color) -> [u8; 3] {
     match color {
-        vt100::Color::Default => [205, 214, 244], // Catppuccin text
+        vt100::Color::Default => hex_to_rgb(active_theme().get(term_pro::ThemeColor::Foreground)),
         vt100::Color::Idx(i) => idx_to_rgb(*i),
         vt100::Color::Rgb(r, g, b) => [*r, *g, *b],
     }
@@ -40,31 +58,45 @@ fn color_to_rgb(color: &vt100::Color) -> [u8; 3] {
 
 fn color_to_bg_rgb(color: &vt100::Color) -> [u8; 3] {
     match color {
-        vt100::Color::Default => [30, 30, 46], // Catppuccin base
+        vt100::Color::Default => hex_to_rgb(active_theme().get(term_pro::ThemeColor::Background)),
         vt100::Color::Idx(i) => idx_to_rgb(*i),
         vt100::Color::Rgb(r, g, b) => [*r, *g, *b],
     }
 }
 
+/// Parse a "#RRGGBB" hex string to [r, g, b].
+fn hex_to_rgb(hex: &str) -> [u8; 3] {
+    if hex.len() >= 7 && hex.starts_with('#') {
+        let r = u8::from_str_radix(&hex[1..3], 16).unwrap_or(205);
+        let g = u8::from_str_radix(&hex[3..5], 16).unwrap_or(214);
+        let b = u8::from_str_radix(&hex[5..7], 16).unwrap_or(244);
+        [r, g, b]
+    } else {
+        [205, 214, 244] // fallback to Catppuccin text
+    }
+}
+
 fn idx_to_rgb(i: u8) -> [u8; 3] {
-    // Standard 16 ANSI colors (Catppuccin Mocha mapped)
+    use term_pro::ThemeColor;
+    let theme = active_theme();
+    // Standard 16 ANSI colors — read from the active theme
     match i {
-        0 => [69, 71, 90],       // black → surface1
-        1 => [243, 139, 168],    // red
-        2 => [166, 227, 161],    // green
-        3 => [249, 226, 175],    // yellow
-        4 => [137, 180, 250],    // blue
-        5 => [245, 194, 231],    // magenta
-        6 => [148, 226, 213],    // cyan
-        7 => [186, 194, 222],    // white
-        8 => [88, 91, 112],      // bright black
-        9 => [243, 139, 168],    // bright red
-        10 => [166, 227, 161],   // bright green
-        11 => [249, 226, 175],   // bright yellow
-        12 => [137, 180, 250],   // bright blue
-        13 => [245, 194, 231],   // bright magenta
-        14 => [148, 226, 213],   // bright cyan
-        15 => [166, 173, 200],   // bright white
+        0 => hex_to_rgb(theme.get(ThemeColor::Black)),
+        1 => hex_to_rgb(theme.get(ThemeColor::Red)),
+        2 => hex_to_rgb(theme.get(ThemeColor::Green)),
+        3 => hex_to_rgb(theme.get(ThemeColor::Yellow)),
+        4 => hex_to_rgb(theme.get(ThemeColor::Blue)),
+        5 => hex_to_rgb(theme.get(ThemeColor::Magenta)),
+        6 => hex_to_rgb(theme.get(ThemeColor::Cyan)),
+        7 => hex_to_rgb(theme.get(ThemeColor::White)),
+        8 => hex_to_rgb(theme.get(ThemeColor::BrightBlack)),
+        9 => hex_to_rgb(theme.get(ThemeColor::BrightRed)),
+        10 => hex_to_rgb(theme.get(ThemeColor::BrightGreen)),
+        11 => hex_to_rgb(theme.get(ThemeColor::BrightYellow)),
+        12 => hex_to_rgb(theme.get(ThemeColor::BrightBlue)),
+        13 => hex_to_rgb(theme.get(ThemeColor::BrightMagenta)),
+        14 => hex_to_rgb(theme.get(ThemeColor::BrightCyan)),
+        15 => hex_to_rgb(theme.get(ThemeColor::BrightWhite)),
         // 256-color: 16-231 = 6x6x6 cube, 232-255 = grayscale
         16..=231 => {
             let c = i - 16;

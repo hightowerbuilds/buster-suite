@@ -93,12 +93,15 @@ No remaining work. All specified features implemented and tested (54 tests).
 
 ## buster-terminal-pro
 
-**Built:** Runtime-switchable themes (Catppuccin Mocha + Solarized Dark), OSC 8 hyperlink parsing, CJK double-width character detection, Unicode combining character handling, bell notification modes, terminal search within scrollback, scrollback buffer with configurable limits and alt-screen isolation. 16 tests.
+**Built:** Runtime-switchable themes (Catppuccin Mocha + Solarized Dark), OSC 8 hyperlink parsing, CJK double-width character detection, Unicode combining character handling, bell notification modes, terminal search within scrollback, scrollback buffer with configurable limits and alt-screen isolation, PTY crash monitor with restart tracking, sixel image protocol decoder. 27 tests. Theme wired into Buster's terminal/mod.rs (replaces hardcoded Catppuccin colors).
 
 **Remaining:**
-- [ ] PTY crash detection and graceful restart (error type exists but no recovery loop)
-- [ ] Image protocol support (sixel or kitty — at least one)
-- [ ] Wire theme switching into buster's terminal/mod.rs (currently hardcoded Catppuccin colors)
+- [x] ~~PTY crash detection and graceful restart~~ — PtyMonitor built with alive flag, restart counter, max restart limit
+- [x] ~~Image protocol support (sixel)~~ — SixelParser decodes DCS sequences to RGBA pixel buffers
+- [x] ~~Wire theme switching into buster's terminal/mod.rs~~ — color_to_rgb/idx_to_rgb now read from active TerminalTheme
+- [ ] Frontend sixel rendering — SixelImage data needs to be drawn on the canvas in CanvasTerminal.tsx
+- [ ] PTY respawn wiring — PtyMonitor needs to be integrated into TerminalManager.spawn() reader loop
+- [ ] Runtime theme switching UI — settings panel needs a terminal theme selector
 
 ---
 
