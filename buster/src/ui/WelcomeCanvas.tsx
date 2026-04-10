@@ -21,6 +21,7 @@ interface Particle {
   alpha: number; targetAlpha: number;
   settled: boolean;
   falling: boolean;        // knocked loose by drag
+  landed: boolean;         // resting on a platform (subtitle/folder text)
   gravity: number;         // per-particle gravity multiplier
 }
 
@@ -53,6 +54,8 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
   let folderHitAreas: { x: number; y: number; w: number; h: number; path: string }[] = [];
   let phaseTimer = 0;
   let reassembleTimer = 0; // counts frames since last drag to trigger reassembly
+  let subtitleY = 0;       // Y position of the subtitle text (platform)
+  let folderY = 0;         // Y position of the folder links (platform)
 
   const SUBTITLE = "canvas-rendered ide";
   const DRAG_RADIUS = 40;  // how close the drag must be to knock particles loose
@@ -129,6 +132,7 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
       targetAlpha: 0.7 + Math.random() * 0.3,
       settled: false,
       falling: false,
+      landed: false,
       gravity: 0.8 + Math.random() * 0.4,
     }));
 
@@ -217,12 +221,13 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
     }
 
     // Auto-reassemble after drag stops (2 seconds of no dragging)
-    if (!dragging && particles.some(p => p.falling)) {
+    if (!dragging && particles.some(p => p.falling || p.landed)) {
       reassembleTimer++;
       if (reassembleTimer > 120) {
         for (const p of particles) {
-          if (p.falling) {
+          if (p.falling || p.landed) {
             p.falling = false;
+            p.landed = false;
           }
         }
       }
@@ -232,16 +237,49 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
     const particleFont = '8px "JetBrains Mono", monospace';
     let settledCount = 0;
 
+    // Platform positions (top of text lines where particles can land)
+    const platformY1 = subtitleY > 0 ? subtitleY - 4 : h * 0.72 - 4;
+    const platformY2 = folderY > 0 ? folderY - 4 : platformY1 + 35;
+
     for (const p of particles) {
-      if (p.falling) {
+      if (p.landed) {
+        // Resting on a platform — slight friction decay, no gravity
+        p.vx *= 0.95;
+        p.x += p.vx;
+      } else if (p.falling) {
         // Apply gravity — letters fall
         p.vy += GRAVITY * p.gravity;
         p.x += p.vx;
         p.y += p.vy;
-        // Fade out as they fall off screen
-        p.alpha *= 0.995;
+
+        // Check platform collision (only when moving downward)
+        if (p.vy > 0) {
+          // Subtitle platform
+          if (p.y >= platformY1 && p.y - p.vy < platformY1) {
+            p.y = platformY1;
+            p.vy = -p.vy * 0.15; // tiny bounce
+            if (Math.abs(p.vy) < 0.5) {
+              p.vy = 0;
+              p.landed = true;
+              p.falling = false;
+            }
+          }
+          // Folder links platform
+          else if (p.y >= platformY2 && p.y - p.vy < platformY2) {
+            p.y = platformY2;
+            p.vy = -p.vy * 0.15;
+            if (Math.abs(p.vy) < 0.5) {
+              p.vy = 0;
+              p.landed = true;
+              p.falling = false;
+            }
+          }
+        }
+
+        // Fade out if they fall off screen past platforms
         if (p.y > h + 50) {
-          p.alpha = 0;
+          p.alpha *= 0.95;
+          if (p.alpha < 0.01) p.alpha = 0;
         }
       } else if (phase === "scatter") {
         p.x += p.vx * 2; p.y += p.vy * 2;
@@ -289,6 +327,8 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
       ctx.textBaseline = "top";
 
       const subY = h * 0.72;
+      subtitleY = subY;
+      folderY = subY + 35;
 
       ctx.fillStyle = `rgba(166, 173, 200, ${Math.min(1, subtitleProgress * 0.1)})`;
       ctx.fillText(subText, w / 2, subY);
