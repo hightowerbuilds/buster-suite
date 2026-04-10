@@ -2,15 +2,11 @@ import {
   saveSession as saveSessionIpc,
   loadSession as loadSessionIpc,
   saveBackupBuffer,
-  loadBackupBuffer,
-  deleteBackupBuffer,
   confirmAppClose,
   type SessionState,
   type SessionTab,
 } from "./ipc";
 import type { Tab } from "./tab-types";
-
-export type { SessionState, SessionTab };
 
 export interface SessionSnapshot {
   workspaceRoot: string | null;
@@ -24,7 +20,7 @@ export interface SessionSnapshot {
 }
 
 /** Build a SessionState from the current app state for persistence. */
-export function buildSessionState(snap: SessionSnapshot): SessionState {
+function buildSessionState(snap: SessionSnapshot): SessionState {
   const sessionTabs: SessionTab[] = snap.tabs.map((tab) => ({
     id: tab.id,
     type: tab.type,
@@ -71,16 +67,6 @@ export async function persistSession(snap: SessionSnapshot): Promise<void> {
 /** Load session from disk. Returns null if no session or version mismatch. */
 export async function loadSessionFromDisk(): Promise<SessionState | null> {
   return loadSessionIpc();
-}
-
-/** Load a backup buffer by key. Returns null if not found. */
-export async function loadBackup(key: string): Promise<string | null> {
-  return loadBackupBuffer(key);
-}
-
-/** Delete a backup buffer after successful restore. */
-export async function deleteBackup(key: string): Promise<void> {
-  return deleteBackupBuffer(key);
 }
 
 /** Close the app window (called after hot-exit save completes). */

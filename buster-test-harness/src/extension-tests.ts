@@ -7,7 +7,7 @@
  */
 
 import { join } from "node:path";
-import { mkdir, rm, readdir, stat, writeFile, readFile, cp } from "node:fs/promises";
+import { mkdir, rm, stat, readFile, cp } from "node:fs/promises";
 
 /** Represents the activation state of an extension */
 export type ExtensionState = "installed" | "loaded" | "unloaded" | "uninstalled";

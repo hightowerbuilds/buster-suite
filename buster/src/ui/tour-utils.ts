@@ -1,3 +1,5 @@
+import { measureTextWidth } from "../editor/text-measure";
+
 export const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}[]()<>/*+-=_|\\;:'\",.<>?!@#$%^&~`";
 export const TERM_GLYPHS = "$>|/\\#~-=@_%^&*!?:;[]{}()<>0123456789abcdef";
 export const TERM_FRAGMENTS = [
@@ -54,8 +56,8 @@ export function sampleTextPixels(
   ctx.textBaseline = "top";
   ctx.fillText(text, 10, 10);
 
-  const metrics = ctx.measureText(text);
-  const width = Math.min(Math.ceil(metrics.width) + 20, 2000);
+  const textW = measureTextWidth(text, `${fontSize}px ${family}`);
+  const width = Math.min(Math.ceil(textW) + 20, 2000);
   const height = Math.min(fontSize + 40, 600);
 
   const imageData = ctx.getImageData(0, 0, width, height);
@@ -94,15 +96,11 @@ export function hexToRgba(hex: string, alpha: number): string {
 }
 
 export function computeTitleFontSize(text: string, canvasWidth: number, fontFamily?: string): number {
-  const c = document.createElement("canvas");
-  c.width = 1; c.height = 1;
-  const ctx = c.getContext("2d")!;
   const maxWidth = canvasWidth * 0.85;
   let size = 72;
   const family = fontFamily || '"JetBrains Mono", "Menlo", "Monaco", monospace';
   while (size > 24) {
-    ctx.font = `${size}px ${family}`;
-    if (ctx.measureText(text).width <= maxWidth) break;
+    if (measureTextWidth(text, `${size}px ${family}`) <= maxWidth) break;
     size -= 4;
   }
   return size;

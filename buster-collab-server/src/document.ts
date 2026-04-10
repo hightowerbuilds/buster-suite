@@ -111,11 +111,4 @@ export class Document {
   snapshot(): { content: string; version: number } {
     return { content: this.content, version: this.version };
   }
-
-  /** Compact operation history (keep only recent ops). */
-  compact(keepRecent = 1000): void {
-    if (this.operations.length > keepRecent) {
-      this.operations = this.operations.slice(-keepRecent);
-    }
-  }
 }

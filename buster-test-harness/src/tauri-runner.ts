@@ -5,7 +5,6 @@
  * provides IPC for sending commands and querying state.
  */
 
-import { join } from "node:path";
 import { stat } from "node:fs/promises";
 import type { Subprocess } from "bun";
 

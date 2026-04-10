@@ -13,6 +13,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
   gateway_connect: "Connect to gateways",
   file_read: "Read files",
   file_write: "Write files",
+  render_surface: "Render to canvas surfaces",
 };
 
 const ExtensionsPage: Component = () => {

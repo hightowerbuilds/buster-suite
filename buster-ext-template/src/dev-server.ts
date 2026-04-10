@@ -10,11 +10,6 @@ import { join } from "node:path";
 import { readFile } from "node:fs/promises";
 import type { Server, ServerWebSocket } from "bun";
 
-export interface DevServerOptions {
-  port: number;
-  extensionDir: string;
-}
-
 interface ReloadMessage {
   type: "reload";
   extension_id: string;

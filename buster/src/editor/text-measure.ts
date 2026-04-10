@@ -1,58 +1,80 @@
 /**
- * Text measurement utilities for the canvas editor.
+ * Text measurement utilities for the canvas editor, powered by Pretext.
  *
- * All measurements are in CSS pixels. The cached charWidth is per-fontSize
- * so the editor works correctly when the user changes font size.
+ * Pretext uses a two-phase approach:
+ *   prepare(text, font) — segments text, measures via canvas, caches widths.
+ *   layout(prepared, maxWidth, lineHeight) — pure arithmetic, ~0.0002ms per call.
+ *
+ * For monospace character width we still cache per-fontSize since the editor
+ * relies on uniform charW for cursor positioning and gutter math.
  */
+
+import { prepareWithSegments, layoutWithLines, clearCache as pretextClearCache } from "@chenglou/pretext";
+import type { PreparedText, PreparedTextWithSegments, LayoutLinesResult } from "@chenglou/pretext";
 
 const FONT_FAMILY = "JetBrains Mono, Menlo, Monaco, Consolas, monospace";
 
-// Cache charWidth per font size (px)
+// ─── Monospace character width (cached per font size) ────────────────
+
 const charWidthCache = new Map<number, number>();
 
 /**
  * Get the width of a single monospace character at the given font size.
- * Cached per size — only measures once per unique fontSize.
+ * Uses Pretext's prepare() for measurement instead of raw OffscreenCanvas.
  */
 export function getCharWidth(fontSize: number = 14): number {
   let w = charWidthCache.get(fontSize);
   if (w !== undefined) return w;
 
-  const canvas = new OffscreenCanvas(1, 1);
-  const ctx = canvas.getContext("2d")!;
-  ctx.font = `${fontSize}px ${FONT_FAMILY}`;
-  w = ctx.measureText("M").width;
+  const font = `${fontSize}px ${FONT_FAMILY}`;
+  const seg = prepareWithSegments("M", font);
+  const lines = layoutWithLines(seg, Infinity, fontSize);
+  w = lines.lines.length > 0 ? lines.lines[0].width : fontSize * 0.6;
   charWidthCache.set(fontSize, w);
   return w;
 }
 
+// ─── Pretext text measurement ────────────────────────────────────────
+
 /**
- * Build a CSS font string for a given size.
+ * Measure the pixel width of an arbitrary string using Pretext.
+ * Uses prepare + layoutWithLines for accurate measurement.
  */
-export function editorFont(fontSize: number = 14): string {
-  return `${fontSize}px ${FONT_FAMILY}`;
+export function measureTextWidth(text: string, font: string): number {
+  if (text.length === 0) return 0;
+  const seg = prepareWithSegments(text, font);
+  const result = layoutWithLines(seg, Infinity, parseLineHeight(font));
+  return result.lines.length > 0 ? result.lines[0].width : 0;
 }
 
 /**
- * Convert a pixel x-offset to a character column.
+ * Prepare text for word-wrap layout using Pretext.
+ * Returns a PreparedTextWithSegments handle that can be passed to
+ * layoutWrappedLines() for pure-arithmetic line breaking.
  */
-export function xToCol(x: number, lineText: string, fontSize: number = 14): number {
-  const charW = getCharWidth(fontSize);
-  return Math.max(0, Math.min(Math.round(x / charW), lineText.length));
+export function prepareForLayout(text: string, font: string): PreparedTextWithSegments {
+  return prepareWithSegments(text, font);
 }
 
 /**
- * Convert a character column to a pixel x-offset.
+ * Compute word-wrapped lines from a Pretext prepared handle.
+ * Pure arithmetic — no canvas calls. Safe to call on every resize.
  */
-export function colToX(col: number, fontSize: number = 14): number {
-  return col * getCharWidth(fontSize);
+export function layoutWrappedLines(prepared: PreparedTextWithSegments, maxWidth: number, lineHeight: number): LayoutLinesResult {
+  return layoutWithLines(prepared, maxWidth, lineHeight);
 }
 
-/**
- * Clear all caches. Call when font family changes (not needed for size changes).
- */
-export function clearMeasurementCache() {
+/** Extract a numeric line height from a CSS font string. */
+function parseLineHeight(font: string): number {
+  const match = font.match(/(\d+(?:\.\d+)?)px/);
+  return match ? parseFloat(match[1]) : 14;
+}
+
+/** Clear all Pretext internal caches. */
+export function clearMeasurementCache(): void {
   charWidthCache.clear();
+  pretextClearCache();
 }
 
 export { FONT_FAMILY };
+export type { PreparedText, PreparedTextWithSegments, LayoutLinesResult };

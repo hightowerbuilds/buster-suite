@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import CanvasSurface from "./CanvasSurface";
 import { tabTrapping } from "../lib/app-state";
-import { FONT_FAMILY } from "../editor/text-measure";
+import { FONT_FAMILY, getCharWidth, measureTextWidth } from "../editor/text-measure";
 
 interface TermCell {
   ch: string;
@@ -94,11 +94,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   function fontSize() { return settings().font_size; }
 
   function measureChar() {
-    const c = document.createElement("canvas");
-    c.width = 1; c.height = 1;
-    const ctx = c.getContext("2d")!;
-    ctx.font = `${fontSize()}px ${FONT_FAMILY}`;
-    charWidth = ctx.measureText("M").width;
+    charWidth = getCharWidth(fontSize());
     charHeight = fontSize() + 4;
   }
 
@@ -176,11 +172,15 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     renderScheduled = false;
     if (!canvasRef || !containerRef) return;
     if (!needsRedraw) return;
+    // Skip rendering when hidden — canvas retains its last frame
+    if (!props.active) return;
     needsRedraw = false;
 
     const dpr = window.devicePixelRatio || 1;
     const w = containerRef.clientWidth;
     const h = containerRef.clientHeight;
+    // Guard against zero dimensions (display: none transition)
+    if (w === 0 || h === 0) return;
 
     // Only resize backing store when dimensions change
     const targetW = Math.round(w * dpr);
@@ -314,7 +314,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       const label = `↑ ${scrollOffset} lines`;
       const smallFont = `${fs - 2}px ${FONT_FAMILY}`;
       ctx.font = smallFont;
-      const tw = ctx.measureText(label).width;
+      const tw = measureTextWidth(label, smallFont);
       ctx.fillStyle = p.surface1;
       ctx.fillRect(w - tw - 16, 4, tw + 12, fs + 4);
       ctx.fillStyle = p.text;
@@ -322,8 +322,24 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     }
   }
 
-  async function handleResize() {
+  let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+  const RESIZE_DEBOUNCE_MS = 80;
+
+  function handleResize() {
     if (!containerRef) return;
+    const w = containerRef.clientWidth;
+    const h = containerRef.clientHeight;
+    // Skip zero-size measurements (display: none)
+    if (w === 0 || h === 0) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(commitResize, RESIZE_DEBOUNCE_MS);
+  }
+
+  async function commitResize() {
+    if (!containerRef) return;
+    const w = containerRef.clientWidth;
+    const h = containerRef.clientHeight;
+    if (w === 0 || h === 0) return;
     measureChar();
     const { rows, cols } = computeGridSize();
     if (rows !== termRows || cols !== termCols) {
@@ -335,6 +351,8 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
         } catch {}
       }
     }
+    needsRedraw = true;
+    scheduleTermRender();
   }
 
   function handleInput() {
@@ -524,6 +542,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
         if (active && !prevActive) {
           requestAnimationFrame(() => {
             hiddenInput?.focus();
+            // Debounced — waits for layout to settle before resizing PTY
             handleResize();
           });
           if (ptyId) invoke("terminal_write", { termId: ptyId, data: "\x1b[I" }).catch((e) => console.warn("Terminal IPC error:", e));
@@ -638,6 +657,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
     onCleanup(() => {
       cancelAnimationFrame(animId);
+      clearTimeout(resizeTimer);
       if (unlisten) unlisten();
       if (unlistenSixel) unlistenSixel();
       if (unlistenTheme) unlistenTheme();

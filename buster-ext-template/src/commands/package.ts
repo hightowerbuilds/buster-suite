@@ -8,7 +8,7 @@
 
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { validateManifest, type ExtensionManifest } from "../manifest.ts";
+
 
 export async function pack(_args: string[]): Promise<void> {
   const cwd = process.cwd();

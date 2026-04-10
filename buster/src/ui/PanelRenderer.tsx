@@ -17,6 +17,7 @@ import SearchResultsPanel from "./SearchResultsPanel";
 import Sidebar from "./Sidebar";
 import BlogPreview from "./BlogPreview";
 import ImageViewer from "./ImageViewer";
+import DisplayListSurface from "./DisplayListSurface";
 import type { Tab } from "../lib/tab-types";
 import type { SearchMatch, DiffHunk } from "../lib/ipc";
 import type { AppSettings } from "../lib/ipc";
@@ -189,6 +190,19 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
       );
     }
 
+    if (tab.type === "surface") {
+      const meta = JSON.parse(tab.path || "{}");
+      return (
+        <DisplayListSurface
+          surfaceId={meta.surface_id ?? 0}
+          extensionId={meta.extension_id ?? ""}
+          initialWidth={meta.width ?? 800}
+          initialHeight={meta.height ?? 600}
+          label={tab.name}
+        />
+      );
+    }
+
     // File tab
     const existingEngine = deps.engineMap.get(tab.id);
     const initialText = existingEngine ? existingEngine.getText() : deps.getFileTextForTab(tab.id);
@@ -239,6 +253,7 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
           <CanvasEditor
             initialText={initialText}
             filePath={tab.path || null}
+            active={isActive()}
             onEngineReady={(engine) => { deps.engineMap.set(tab.id, engine); }}
             onDirtyChange={(dirty) => {
               const current = deps.tabs().find(t => t.id === tab.id);

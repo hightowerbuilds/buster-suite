@@ -1,11 +1,31 @@
 import { Component, onMount, onCleanup } from "solid-js";
 import { basename } from "buster-path";
+import { measureTextWidth } from "../editor/text-measure";
 
 const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}[]()<>/*+-=_|\\;:'\",.<>?!@#$%^&~`";
 
 // Module-level cache for sampled pixel positions — survives component remounts
 let cachedPixelPoints: { x: number; y: number }[] | null = null;
 let cachedPixelKey = "";
+
+// Cycle through 14 fonts on each refresh (resize, sidebar pull, etc.)
+const TITLE_FONTS = [
+  '"UnifrakturMaguntia"',
+  "Georgia",
+  '"Times New Roman"',
+  "Impact",
+  '"Arial Black"',
+  '"Courier New"',
+  '"Trebuchet MS"',
+  "Verdana",
+  "Palatino",
+  "Futura",
+  "Didot",
+  "Copperplate",
+  '"Helvetica Neue"',
+  "Rockwell",
+];
+let fontCycleIndex = -1;
 
 // Pre-computed rain alpha strings
 const RAIN_COLORS: string[] = [];
@@ -62,21 +82,21 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
   const GRAVITY = 0.35;
 
   function sampleTextPixels(
-    text: string, fontSize: number, offsetX: number, offsetY: number, step: number
+    text: string, fontSize: number, fontFamily: string, offsetX: number, offsetY: number, step: number
   ): { x: number; y: number }[] {
-    const key = `${text}:${fontSize}:${Math.round(offsetX)}:${Math.round(offsetY)}:${step}`;
+    const key = `${text}:${fontSize}:${fontFamily}:${Math.round(offsetX)}:${Math.round(offsetY)}:${step}`;
     if (cachedPixelPoints && cachedPixelKey === key) return cachedPixelPoints;
 
     const c = document.createElement("canvas");
     c.width = 2000; c.height = 500;
     const ctx = c.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
-    ctx.font = `${fontSize}px "UnifrakturMaguntia", "JetBrains Mono", monospace`;
+    ctx.font = `${fontSize}px ${fontFamily}`;
     ctx.textBaseline = "top";
     ctx.fillText(text, 10, 10);
 
-    const metrics = ctx.measureText(text);
-    const width = Math.min(Math.ceil(metrics.width) + 20, 2000);
+    const textW = measureTextWidth(text, `${fontSize}px ${fontFamily}`);
+    const width = Math.min(Math.ceil(textW) + 20, 2000);
     const height = Math.min(fontSize + 40, 500);
 
     const imageData = ctx.getImageData(0, 0, width, height);
@@ -102,24 +122,24 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
     const h = canvasRef.clientHeight;
     if (w === 0 || h === 0) return;
 
-    // Measure title — scale to fit 85% of canvas width
-    const measure = document.createElement("canvas");
-    measure.width = 1; measure.height = 1;
-    const mCtx = measure.getContext("2d")!;
+    // Cycle to the next font on each refresh
+    fontCycleIndex = (fontCycleIndex + 1) % TITLE_FONTS.length;
+    const titleFontFace = TITLE_FONTS[fontCycleIndex]!;
+    const titleFontFamily = `${titleFontFace}, "JetBrains Mono", monospace`;
+
+    // Measure title — scale to fit 85% of canvas width (via Pretext)
     let titleSize = 320;
     const maxWidth = w * 0.85;
     while (titleSize > 48) {
-      mCtx.font = `${titleSize}px "UnifrakturMaguntia", "JetBrains Mono", monospace`;
-      if (mCtx.measureText("Buster").width <= maxWidth) break;
+      if (measureTextWidth("Buster", `${titleSize}px ${titleFontFamily}`) <= maxWidth) break;
       titleSize -= 8;
     }
 
-    mCtx.font = `${titleSize}px "UnifrakturMaguntia", "JetBrains Mono", monospace`;
-    const titleW = mCtx.measureText("Buster").width;
+    const titleW = measureTextWidth("Buster", `${titleSize}px ${titleFontFamily}`);
     const offsetX = (w - titleW) / 2 - 10;
     const offsetY = (h - titleSize) * 0.35;
 
-    const points = sampleTextPixels("Buster", titleSize, offsetX, offsetY, 5);
+    const points = sampleTextPixels("Buster", titleSize, titleFontFamily, offsetX, offsetY, 5);
 
     particles = points.map((p) => ({
       tx: p.x, ty: p.y,
@@ -335,7 +355,7 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
 
       // Cursor
       if (subtitleProgress < SUBTITLE.length || Math.floor(time / 30) % 2 === 0) {
-        const cursorX = w / 2 + ctx.measureText(subText).width / 2 + 2;
+        const cursorX = w / 2 + measureTextWidth(subText, '16px "Courier New", Courier, monospace') / 2 + 2;
         ctx.fillStyle = `rgba(205, 214, 244, ${subtitleProgress < SUBTITLE.length ? 1 : 0.6})`;
         ctx.fillRect(cursorX, subY, 2, 16);
       }
@@ -355,7 +375,7 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
           const gap = 20;
           const items = folders.map((f) => {
             const name = basename(f);
-            return { display: `/${name}`, path: f, width: ctx.measureText(`/${name}`).width };
+            return { display: `/${name}`, path: f, width: measureTextWidth(`/${name}`, '16px "JetBrains Mono", monospace') };
           });
           const totalW = items.reduce((sum, item) => sum + item.width, 0) + gap * (items.length - 1);
           let curX = w / 2 - totalW / 2;

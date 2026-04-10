@@ -15,7 +15,7 @@ export function quakeElement(el: HTMLElement | null) {
   target.addEventListener("animationend", () => target.classList.remove("copy-quake"), { once: true });
 }
 
-export interface MenuHandlerDeps {
+interface MenuHandlerDeps {
   activeEngine: () => EditorEngine | null;
   changeDirectory: () => void;
   closeDirectory: () => void;

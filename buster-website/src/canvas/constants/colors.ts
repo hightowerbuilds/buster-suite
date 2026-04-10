@@ -3,8 +3,6 @@ export const C = {
   mantle:   "#181825",
   crust:    "#11111b",
   surface0: "#313244",
-  surface1: "#45475a",
-  surface2: "#585b70",
   text:     "#cdd6f4",
   textDim:  "#a6adc8",
   textMuted:"#7f849c",
@@ -12,15 +10,11 @@ export const C = {
   pink:     "#f5c2e7",
   green:    "#a6e3a1",
   peach:    "#fab387",
-  yellow:   "#f9e2af",
-  red:      "#f38ba8",
   mauve:    "#cba6f7",
-  cyan:     "#89dceb",
-  flamingo: "#f5e0dc",
   comment:  "#6c7086",
 };
 
-export const MARINERS = {
+const MARINERS = {
   navy:      "#0C2C56",
   teal:      "#005C5C",
   nwGreen:   "#00A5B5",

@@ -2,9 +2,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use wasmtime::*;
+use wasmtime_wasi::{WasiCtxBuilder, preview1 as wasi_preview1};
+use wasmtime_wasi::preview1::WasiP1Ctx;
+use wasmtime_wasi::pipe::MemoryOutputPipe;
 
 use super::gateway::{GatewayEvent, GatewayManager};
 use super::manifest::ExtensionManifest;
+use super::surface::{SurfaceManager, MeasureTextRequest};
 
 // Buster sandbox integration — allowlist-based command execution
 use buster_sandbox::{SandboxConfig, ExecutionRequest, ExitStatus, ResourceLimits, execute as sandbox_execute};
@@ -55,6 +59,12 @@ pub struct ExtensionState {
     pub return_buffer: Vec<u8>,
     /// Event callback — sends events to the Tauri frontend
     pub event_sink: Arc<dyn Fn(GatewayEvent) + Send + Sync>,
+    pub surface_manager: Arc<SurfaceManager>,
+    pub measure_event_sink: Arc<dyn Fn(MeasureTextRequest) + Send + Sync>,
+    /// WASI context — present only for runtime="wasi" extensions
+    pub wasi: Option<WasiP1Ctx>,
+    /// Captured stdout pipe — for WASI modules that output display list JSON
+    pub stdout_pipe: Option<MemoryOutputPipe>,
 }
 
 /// A loaded extension instance.
@@ -65,30 +75,56 @@ pub struct ExtensionInstance {
 }
 
 impl ExtensionInstance {
-    /// Call the extension's activate() export.
+    /// Whether this extension uses the WASI runtime.
+    pub fn is_wasi(&self) -> bool {
+        self.manifest.extension.runtime == "wasi"
+    }
+
+    /// Call the extension's activate() export (bare modules),
+    /// or _start (WASI modules).
     pub fn activate(&mut self) -> Result<(), String> {
-        if let Ok(func) = self.instance.get_typed_func::<(), i32>(&mut self.store, "activate") {
-            let result = func
-                .call(&mut self.store, ())
-                .map_err(|e| format!("activate() failed: {}", e))?;
-            if result != 0 {
-                return Err(format!("activate() returned error code {}", result));
+        if self.is_wasi() {
+            // WASI modules use _start as entry point
+            if let Ok(func) = self.instance.get_typed_func::<(), ()>(&mut self.store, "_start") {
+                func.call(&mut self.store, ())
+                    .map_err(|e| format!("_start() failed: {}", e))?;
             }
+            Ok(())
+        } else {
+            if let Ok(func) = self.instance.get_typed_func::<(), i32>(&mut self.store, "activate") {
+                let result = func
+                    .call(&mut self.store, ())
+                    .map_err(|e| format!("activate() failed: {}", e))?;
+                if result != 0 {
+                    return Err(format!("activate() returned error code {}", result));
+                }
+            }
+            Ok(())
         }
-        Ok(())
     }
 
     /// Call the extension's deactivate() export.
     pub fn deactivate(&mut self) -> Result<(), String> {
-        if let Ok(func) = self.instance.get_typed_func::<(), ()>(&mut self.store, "deactivate") {
-            func.call(&mut self.store, ())
-                .map_err(|e| format!("deactivate() failed: {}", e))?;
+        if self.is_wasi() {
+            // WASI modules don't typically have deactivate — no-op
+            Ok(())
+        } else {
+            if let Ok(func) = self.instance.get_typed_func::<(), ()>(&mut self.store, "deactivate") {
+                func.call(&mut self.store, ())
+                    .map_err(|e| format!("deactivate() failed: {}", e))?;
+            }
+            Ok(())
         }
-        Ok(())
     }
 
     /// Call an arbitrary exported function by name, passing JSON in/out.
+    /// For bare modules, uses alloc/memory/set_return convention.
+    /// For WASI modules, passes params via stdin and captures stdout.
     pub fn call_method(&mut self, method: &str, params: &str) -> Result<String, String> {
+        if self.is_wasi() {
+            return self.call_wasi_method(method, params);
+        }
+
         let memory = self
             .instance
             .get_memory(&mut self.store, "memory")
@@ -122,6 +158,31 @@ impl ExtensionInstance {
         // Read result from return buffer
         let state = self.store.data();
         Ok(String::from_utf8_lossy(&state.return_buffer).to_string())
+    }
+
+    /// Call a WASI module's exported function and capture stdout.
+    fn call_wasi_method(&mut self, method: &str, _params: &str) -> Result<String, String> {
+        // Try to call the named export directly
+        if let Ok(func) = self.instance.get_typed_func::<(), ()>(&mut self.store, method) {
+            func.call(&mut self.store, ())
+                .map_err(|e| format!("{}() failed: {}", method, e))?;
+        } else {
+            return Err(format!("WASI extension does not export {}()", method));
+        }
+
+        // Read captured stdout
+        self.read_stdout()
+    }
+
+    /// Read captured stdout from the WASI pipe.
+    pub fn read_stdout(&self) -> Result<String, String> {
+        match &self.store.data().stdout_pipe {
+            Some(pipe) => {
+                let bytes = pipe.contents();
+                Ok(String::from_utf8_lossy(&bytes).to_string())
+            }
+            None => Ok(String::new()),
+        }
     }
 }
 
@@ -158,6 +219,8 @@ impl WasmRuntime {
         extension_dir: &Path,
         workspace_root: Arc<Mutex<Option<String>>>,
         event_sink: Arc<dyn Fn(GatewayEvent) + Send + Sync>,
+        surface_manager: Arc<SurfaceManager>,
+        measure_event_sink: Arc<dyn Fn(MeasureTextRequest) + Send + Sync>,
     ) -> Result<ExtensionInstance, String> {
         // Parse manifest
         let manifest_path = extension_dir.join("extension.toml");
@@ -171,6 +234,21 @@ impl WasmRuntime {
         let module = Module::from_file(&self.engine, &wasm_path)
             .map_err(|e| format!("Failed to load extension.wasm: {}", e))?;
 
+        let is_wasi = manifest.extension.runtime == "wasi";
+
+        // Build WASI context and stdout pipe if needed
+        let (wasi_ctx, stdout_pipe) = if is_wasi {
+            let pipe = MemoryOutputPipe::new(64 * 1024); // 64KB stdout buffer
+            let ctx = WasiCtxBuilder::new()
+                .stdout(pipe.clone())
+                .inherit_stderr()
+                .args(&[&manifest.extension.id])
+                .build_p1();
+            (Some(ctx), Some(pipe))
+        } else {
+            (None, None)
+        };
+
         // Create store with extension state
         let state = ExtensionState {
             manifest: manifest.clone(),
@@ -178,6 +256,10 @@ impl WasmRuntime {
             workspace_root,
             return_buffer: Vec::new(),
             event_sink,
+            surface_manager,
+            measure_event_sink,
+            wasi: wasi_ctx,
+            stdout_pipe,
         };
 
         let mut store = Store::new(&self.engine, state);
@@ -186,6 +268,15 @@ impl WasmRuntime {
 
         // Link host functions
         let mut linker = Linker::new(&self.engine);
+
+        // For WASI modules, link WASI imports first
+        if is_wasi {
+            wasi_preview1::add_to_linker_sync(&mut linker, |state: &mut ExtensionState| {
+                state.wasi.as_mut().expect("WASI context missing for WASI extension")
+            }).map_err(|e| format!("Failed to link WASI functions: {}", e))?;
+        }
+
+        // Link buster host functions (available to both bare and WASI modules)
         link_host_functions(&mut linker, &manifest.capabilities)
             .map_err(|e| format!("Failed to link host functions: {}", e))?;
 
@@ -481,6 +572,99 @@ fn link_host_functions(linker: &mut Linker<ExtensionState>, _caps: &super::manif
                 caller.data_mut().return_buffer = format!("Sandbox error: {}", e).into_bytes();
                 -1
             }
+        }
+    })?;
+
+    // ── Surface Painting ──────────────────────────────────────────
+
+    linker.func_wrap("buster", "host_request_surface", |mut caller: Caller<'_, ExtensionState>, width: i32, height: i32, label_ptr: i32, label_len: i32| -> i32 {
+        if !caller.data().manifest.capabilities.render_surface {
+            return -1;
+        }
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(m) => m,
+            None => return -1,
+        };
+        let label = read_wasm_str(&memory, &caller, label_ptr, label_len).unwrap_or_default();
+        let ext_id = caller.data().manifest.extension.id.clone();
+        let sm = caller.data().surface_manager.clone();
+        sm.request_surface(&ext_id, width as u32, height as u32, &label) as i32
+    })?;
+
+    linker.func_wrap("buster", "host_paint", |mut caller: Caller<'_, ExtensionState>, surface_id: i32, json_ptr: i32, json_len: i32| -> i32 {
+        if !caller.data().manifest.capabilities.render_surface {
+            return -1;
+        }
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(m) => m,
+            None => return -1,
+        };
+        let json = match read_wasm_str(&memory, &caller, json_ptr, json_len) {
+            Some(s) => s,
+            None => return -1,
+        };
+        let sm = caller.data().surface_manager.clone();
+        match sm.paint(surface_id as u32, &json) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    })?;
+
+    linker.func_wrap("buster", "host_resize_surface", |caller: Caller<'_, ExtensionState>, surface_id: i32, width: i32, height: i32| -> i32 {
+        if !caller.data().manifest.capabilities.render_surface {
+            return -1;
+        }
+        let sm = caller.data().surface_manager.clone();
+        match sm.resize_surface(surface_id as u32, width as u32, height as u32) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    })?;
+
+    linker.func_wrap("buster", "host_release_surface", |caller: Caller<'_, ExtensionState>, surface_id: i32| -> i32 {
+        if !caller.data().manifest.capabilities.render_surface {
+            return -1;
+        }
+        let sm = caller.data().surface_manager.clone();
+        match sm.release_surface(surface_id as u32) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    })?;
+
+    linker.func_wrap("buster", "host_measure_text", |mut caller: Caller<'_, ExtensionState>, text_ptr: i32, text_len: i32, font_ptr: i32, font_len: i32| -> i32 {
+        if !caller.data().manifest.capabilities.render_surface {
+            return -1;
+        }
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(m) => m,
+            None => return -1,
+        };
+        let text = match read_wasm_str(&memory, &caller, text_ptr, text_len) {
+            Some(s) => s,
+            None => return -1,
+        };
+        let font = match read_wasm_str(&memory, &caller, font_ptr, font_len) {
+            Some(s) => s,
+            None => return -1,
+        };
+
+        let sm = caller.data().surface_manager.clone();
+        let (_request_id, rx) = sm.request_measure(&text, &font);
+
+        // Block waiting for the frontend to respond (with 5s timeout)
+        match rx.recv_timeout(std::time::Duration::from_secs(5)) {
+            Ok(metrics) => {
+                let json = serde_json::json!({
+                    "width": metrics.width,
+                    "height": metrics.height,
+                    "ascent": metrics.ascent,
+                    "descent": metrics.descent,
+                });
+                caller.data_mut().return_buffer = json.to_string().into_bytes();
+                0
+            }
+            Err(_) => -1,
         }
     })?;
 

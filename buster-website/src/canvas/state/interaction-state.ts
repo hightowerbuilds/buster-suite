@@ -1,4 +1,4 @@
-export interface Clickable {
+interface Clickable {
   x: number; y: number; w: number; h: number;
   label: string;
   action: string;
@@ -7,7 +7,7 @@ export interface Clickable {
   fixed?: boolean;
 }
 
-export interface WarpSource {
+interface WarpSource {
   x: number; y: number;
   radius: number;
   force: number;

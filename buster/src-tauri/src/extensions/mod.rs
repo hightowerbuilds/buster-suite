@@ -4,6 +4,8 @@ pub mod manifest;
 pub mod gateway;
 #[allow(dead_code)]
 pub mod runtime;
+#[allow(dead_code)]
+pub mod surface;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -139,6 +141,8 @@ impl ExtensionManager {
         &self,
         extension_id: &str,
         event_sink: Arc<dyn Fn(GatewayEvent) + Send + Sync>,
+        surface_manager: Arc<surface::SurfaceManager>,
+        measure_event_sink: Arc<dyn Fn(surface::MeasureTextRequest) + Send + Sync>,
     ) -> Result<ExtensionInfo, String> {
         // Check if already loaded
         if self.instances.lock().await.contains_key(extension_id) {
@@ -173,6 +177,8 @@ impl ExtensionManager {
             &dir,
             self.workspace_root.clone(),
             event_sink,
+            surface_manager,
+            measure_event_sink,
         )?;
 
         // Activate
@@ -190,9 +196,10 @@ impl ExtensionManager {
     }
 
     /// Unload an extension.
-    pub async fn unload(&self, extension_id: &str) -> Result<(), String> {
+    pub async fn unload(&self, extension_id: &str, surface_manager: &surface::SurfaceManager) -> Result<(), String> {
         // Disconnect all gateway connections for this extension
         self.gateway_manager.disconnect_all(extension_id).await;
+        surface_manager.release_all_for_extension(extension_id);
 
         // Deactivate and remove
         let mut instances = self.instances.lock().await;

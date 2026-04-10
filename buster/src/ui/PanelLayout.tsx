@@ -124,11 +124,14 @@ const PanelLayout: Component<PanelLayoutProps> = (props) => {
     <div class="panel-layout" data-layout={effectiveLayout()} ref={containerRef}>
       <Show when={props.tabs.length === 0}>{props.welcome}</Show>
 
-      {/* Tabs mode */}
+      {/* Tabs mode — render all tabs, hide inactive to preserve canvas state */}
       <Show when={props.tabs.length > 0 && effectiveLayout() === "tabs"}>
-        <For each={visibleTabs()}>
+        <For each={props.tabs}>
           {(tab) => (
-            <div class="panel panel-full">
+            <div
+              class="panel panel-full"
+              style={{ display: tab.id === props.activeTabId ? undefined : "none" }}
+            >
               {props.renderPanel(tab, tab.id === props.activeTabId)}
             </div>
           )}

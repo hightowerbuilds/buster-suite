@@ -36,6 +36,7 @@ pub fn run() {
         .manage(SyntaxService::new())
         .manage(LspManager::new())
         .manage(extensions::ExtensionManager::new())
+        .manage(extensions::surface::SurfaceManager::new())
         .manage(watcher::FileWatcher::new())
         .manage(BrowserManager::new())
         .manage(filebuffer::FileBufferManager::new())
@@ -159,6 +160,19 @@ pub fn run() {
                         );
                     }
                 });
+            }
+
+            // Wire surface event sink
+            {
+                let surface_handle = app.handle().clone();
+                let sm = app.state::<extensions::surface::SurfaceManager>();
+                sm.set_event_sink(Arc::new(move |event| {
+                    let _ = surface_handle.emit("surface-event", &event);
+                }));
+                let measure_handle = app.handle().clone();
+                sm.set_measure_sink(Arc::new(move |req| {
+                    let _ = measure_handle.emit("surface-measure-text", &req);
+                }));
             }
 
             Ok(())
@@ -294,6 +308,8 @@ pub fn run() {
             commands::extensions::ext_call,
             commands::extensions::ext_install,
             commands::extensions::ext_uninstall,
+            commands::extensions::surface_measure_text_response,
+            commands::extensions::surface_resize_notify,
             // Browser
             commands::browser::create_browser_view,
             commands::browser::navigate_browser_view,

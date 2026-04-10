@@ -4,6 +4,7 @@ import GitGraph from "./GitGraph";
 import ConflictResolver from "./ConflictResolver";
 import GitHubPage from "./GitHubPage";
 import { palette } from "../lib/app-state";
+import { measureTextWidth } from "../editor/text-measure";
 
 type GitView = "status" | "graph" | "log" | "github";
 
@@ -182,21 +183,20 @@ const GitLog: Component<{ active: boolean; workspaceRoot?: string }> = (props) =
       const msgX = 90;
       const maxMsg = w - msgX - 260;
       let msg = node.message;
-      while (ctx.measureText(msg).width > maxMsg && msg.length > 10) {
+      const msgFont = '13px "Courier New", Courier, monospace';
+      while (measureTextWidth(msg, msgFont) > maxMsg && msg.length > 10) {
         msg = msg.slice(0, -4) + "...";
       }
       ctx.fillText(msg, msgX, textY);
 
       // Refs
       if (node.refs.length > 0) {
-        ctx.font = '11px "Courier New", Courier, monospace';
-        let rx = msgX + ctx.measureText(msg).width + 8;
-        ctx.font = '13px "Courier New", Courier, monospace'; // remeasure with right font
-        rx = msgX + ctx.measureText(msg).width + 8;
-        ctx.font = '10px "Courier New", Courier, monospace';
+        let rx = msgX + measureTextWidth(msg, msgFont) + 8;
+        const refFont = '10px "Courier New", Courier, monospace';
+        ctx.font = refFont;
         for (const ref of node.refs) {
           const clean = ref.replace("HEAD -> ", "");
-          const lw = ctx.measureText(clean).width + 8;
+          const lw = measureTextWidth(clean, refFont) + 8;
           const isHead = ref.includes("HEAD");
           ctx.fillStyle = isHead ? p.accent : p.surface0;
           ctx.fillRect(rx, textY - 7, lw, 14);

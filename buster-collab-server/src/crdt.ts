@@ -13,8 +13,6 @@ export interface InsertOp {
   position: number;
   text: string;
   siteId: string;
-  /** @deprecated Use `timestamp.value` — kept for wire compat */
-  timestamp: number;
   lamport?: LamportTimestamp;
 }
 
@@ -23,8 +21,6 @@ export interface DeleteOp {
   position: number;
   length: number;
   siteId: string;
-  /** @deprecated Use `timestamp.value` — kept for wire compat */
-  timestamp: number;
   lamport?: LamportTimestamp;
 }
 

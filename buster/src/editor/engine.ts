@@ -18,7 +18,7 @@
 import { createSignal, batch } from "solid-js";
 import { getCharWidth, FONT_FAMILY } from "./text-measure";
 
-export { getCharWidth, FONT_FAMILY };
+export { getCharWidth };
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ export interface Pos {
   col: number;
 }
 
-export interface Selection {
+interface Selection {
   anchor: Pos;
   head: Pos;
 }

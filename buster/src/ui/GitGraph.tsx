@@ -3,6 +3,7 @@ import { gitLogGraph } from "../lib/ipc";
 import type { GitCommitNode } from "../lib/ipc";
 import { palette } from "../lib/app-state";
 import type { ThemePalette } from "../lib/theme";
+import { measureTextWidth } from "../editor/text-measure";
 
 interface GitGraphProps {
   active: boolean;
@@ -231,7 +232,7 @@ const GitGraph: Component<GitGraphProps> = (props) => {
       ctx.font = LABEL_FONT;
       for (const ref of node.refs) {
         const cleanRef = ref.replace("HEAD -> ", "");
-        const labelW = ctx.measureText(cleanRef).width + 10;
+        const labelW = measureTextWidth(cleanRef, LABEL_FONT) + 10;
         const isHead = ref.includes("HEAD");
 
         // Label background
@@ -255,7 +256,7 @@ const GitGraph: Component<GitGraphProps> = (props) => {
       const msgX = node.refs.length > 0 ? labelX + 4 : textX;
       const maxMsgW = w - msgX - 220;
       let msg = node.message;
-      while (ctx.measureText(msg).width > maxMsgW && msg.length > 10) {
+      while (measureTextWidth(msg, FONT) > maxMsgW && msg.length > 10) {
         msg = msg.slice(0, -4) + "...";
       }
       ctx.fillText(msg, msgX, y);

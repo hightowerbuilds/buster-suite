@@ -57,7 +57,4 @@ pub enum SyntaxError {
 
     #[error("parse failed for document: {uri}")]
     ParseFailed { uri: String },
-
-    #[error("grammar load error: {0}")]
-    GrammarLoad(String),
 }

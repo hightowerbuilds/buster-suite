@@ -6,6 +6,7 @@ import {
   type Particle, type RainDrop, type Phase,
   sampleTextPixels, hexToRgba, computeTitleFontSize, initRain,
 } from "./tour-utils";
+import { measureTextWidth } from "../editor/text-measure";
 import { createMatrixRain } from "./tour-matrix-rain";
 import { renderSettledSlide, resetBlogState, type SlideState } from "./tour-slide-renderer";
 
@@ -63,25 +64,20 @@ const TourCanvas: Component<TourCanvasProps> = (props) => {
       ? '"UnifrakturMaguntia", "JetBrains Mono", monospace'
       : '"JetBrains Mono", "Menlo", "Monaco", monospace';
 
-    // Size the title
-    const c = document.createElement("canvas");
-    c.width = 1; c.height = 1;
-    const ctx = c.getContext("2d")!;
+    // Size the title (via Pretext)
     let finalSize: number;
     if (isBusterStep) {
       finalSize = 320;
       const maxWidth = w * 0.85;
       while (finalSize > 48) {
-        ctx.font = `${finalSize}px ${fontFamily}`;
-        if (ctx.measureText(displayTitle).width <= maxWidth) break;
+        if (measureTextWidth(displayTitle, `${finalSize}px ${fontFamily}`) <= maxWidth) break;
         finalSize -= 8;
       }
     } else if (isTerminalStep) {
       finalSize = 500;
       const maxWidth = w * 0.85;
       while (finalSize > 48) {
-        ctx.font = `${finalSize}px ${fontFamily}`;
-        if (ctx.measureText(displayTitle).width <= maxWidth) break;
+        if (measureTextWidth(displayTitle, `${finalSize}px ${fontFamily}`) <= maxWidth) break;
         finalSize -= 8;
       }
     } else {
@@ -89,8 +85,7 @@ const TourCanvas: Component<TourCanvasProps> = (props) => {
     }
 
     const samplingStep = finalSize >= 100 ? 5 : finalSize >= 48 ? 6 : 4;
-    ctx.font = `${finalSize}px ${fontFamily}`;
-    const titleW = ctx.measureText(displayTitle).width;
+    const titleW = measureTextWidth(displayTitle, `${finalSize}px ${fontFamily}`);
     const offsetX = (w - titleW) / 2 - 10;
     const offsetY = isBusterStep ? (h - finalSize) * 0.35 : h * 0.25;
 

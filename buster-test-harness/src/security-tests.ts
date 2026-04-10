@@ -7,7 +7,7 @@
  */
 
 import { run, type RunResult } from "./runner.ts";
-import { writeFile, rm } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 
 /** Result of a security test assertion */

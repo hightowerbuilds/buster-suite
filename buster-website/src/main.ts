@@ -10,7 +10,7 @@ async function init() {
     await document.fonts.load('48px "UnifrakturMaguntia"');
     await document.fonts.load('14px "JetBrains Mono"');
     await document.fonts.ready;
-  } catch (e) {
+  } catch {
     // Continue even if fonts fail
   }
 

@@ -20,10 +20,18 @@ pub struct ExtensionMeta {
     pub version: String,
     #[serde(default)]
     pub description: String,
+    /// WASM runtime mode: "bare" (default) for raw wasm32-unknown-unknown,
+    /// "wasi" for modules compiled with WASI support (e.g. wasm_of_ocaml).
+    #[serde(default = "default_runtime")]
+    pub runtime: String,
 }
 
 fn default_version() -> String {
     "0.1.0".to_string()
+}
+
+fn default_runtime() -> String {
+    "bare".to_string()
 }
 
 /// Capabilities an extension can request.
@@ -48,6 +56,9 @@ pub struct Capabilities {
     /// Show notifications to the user
     #[serde(default)]
     pub notifications: bool,
+    /// Request and paint to canvas surfaces
+    #[serde(default)]
+    pub render_surface: bool,
 }
 
 impl Capabilities {
@@ -59,6 +70,7 @@ impl Capabilities {
         if self.commands { out.push("commands".into()); }
         if self.terminal { out.push("terminal".into()); }
         if self.notifications { out.push("notifications".into()); }
+        if self.render_surface { out.push("render_surface".into()); }
         out
     }
 }

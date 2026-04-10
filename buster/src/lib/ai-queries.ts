@@ -1,7 +1,5 @@
 import { createQuery, createMutation, useQueryClient } from "@tanstack/solid-query";
-import { storeApiKey, deleteApiKey, aiChat } from "./ipc";
-import type { AiChatRequest } from "./ipc";
-import { showToast } from "../ui/CanvasToasts";
+import { storeApiKey } from "./ipc";
 
 const API_KEY_KEY = ["ai", "api-key"] as const;
 
@@ -58,32 +56,3 @@ export function useSaveApiKeyMutation() {
   }));
 }
 
-/**
- * Deletes the API key from all stores.
- */
-export function useDeleteApiKeyMutation() {
-  const qc = useQueryClient();
-  return createMutation(() => ({
-    mutationFn: async () => {
-      localStorage.removeItem("buster-ai-key");
-      try { await deleteApiKey(); } catch {}
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [...API_KEY_KEY] });
-    },
-  }));
-}
-
-/**
- * Mutation for sending a chat message to the AI agent.
- */
-export function useAiChatMutation() {
-  return createMutation(() => ({
-    mutationFn: async (request: AiChatRequest) => {
-      await aiChat(request);
-    },
-    onError: (err: Error) => {
-      showToast(`AI request failed: ${err.message}`, "error");
-    },
-  }));
-}

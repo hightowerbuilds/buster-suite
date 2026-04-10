@@ -267,12 +267,6 @@ export const gitRemoteAdd = (workspaceRoot: string, name: string, url: string) =
 export const gitRemoteRemove = (workspaceRoot: string, name: string) =>
   invoke<void>("git_remote_remove", { workspaceRoot, name });
 
-export const gitRemoteRename = (workspaceRoot: string, oldName: string, newName: string) =>
-  invoke<void>("git_remote_rename", { workspaceRoot, oldName, newName });
-
-export const gitRemoteSetUrl = (workspaceRoot: string, name: string, url: string) =>
-  invoke<void>("git_remote_set_url", { workspaceRoot, name, url });
-
 export interface DiffHunk {
   start_line: number;
   line_count: number;
@@ -520,9 +514,6 @@ export const extLoad = (extensionId: string) =>
 export const extUnload = (extensionId: string) =>
   invoke<void>("ext_unload", { extensionId });
 
-export const extRestore = () =>
-  invoke<string[]>("ext_restore");
-
 export const extGatewayConnect = (extensionId: string, config: GatewayConfig) =>
   invoke<number>("ext_gateway_connect", { extensionId, config });
 
@@ -540,6 +531,22 @@ export const extInstall = (sourcePath: string) =>
 
 export const extUninstall = (extensionId: string) =>
   invoke<void>("ext_uninstall", { extensionId });
+
+// ── Extension Surfaces ──────────────────────────────────────
+
+export interface SurfaceEvent {
+  surface_id: number;
+  extension_id: string;
+  kind: "created" | "paint" | "resize" | "released";
+  content: string;
+}
+
+export const surfaceMeasureTextResponse = (
+  requestId: number, width: number, height: number, ascent: number, descent: number,
+) => invoke<void>("surface_measure_text_response", { requestId, width, height, ascent, descent });
+
+export const surfaceResizeNotify = (surfaceId: number, width: number, height: number) =>
+  invoke<void>("surface_resize_notify", { surfaceId, width, height });
 
 // ── Session ─────────────────────────────────────────────────────────
 
@@ -581,30 +588,18 @@ export const loadBackupBuffer = (backupKey: string) =>
 export const deleteBackupBuffer = (backupKey: string) =>
   invoke<void>("delete_backup_buffer", { backupKey });
 
-export const clearSession = () =>
-  invoke<void>("clear_session");
-
 export const confirmAppClose = () =>
   invoke<void>("confirm_app_close");
 
 export const setRunningFlag = () =>
   invoke<boolean>("set_running_flag");
 
-export const clearRunningFlag = () =>
-  invoke<void>("clear_running_flag");
-
 // Large file buffer
-export const fileIsLarge = (path: string) =>
-  invoke<boolean>("file_is_large", { path });
-
 export const largeFileOpen = (path: string) =>
   invoke<number>("large_file_open", { path });
 
 export const largeFileReadLines = (path: string, start: number, count: number) =>
   invoke<string[]>("large_file_read_lines", { path, start, count });
-
-export const largeFileLineCount = (path: string) =>
-  invoke<number>("large_file_line_count", { path });
 
 export const largeFileClose = (path: string) =>
   invoke<void>("large_file_close", { path });
@@ -656,89 +651,3 @@ export const debugStackTrace = () =>
 export const debugVariables = (variablesReference: number) =>
   invoke<DebugVariable[]>("debug_variables", { variablesReference });
 
-// ── Remote SSH ──────────────────────────────────────────────
-
-export interface RemoteConnectionInfo {
-  host: string;
-  user: string;
-  remote_root: string;
-  connected: boolean;
-}
-
-export interface RemoteFileEntry {
-  name: string;
-  path: string;
-  is_dir: boolean;
-  size: number;
-}
-
-export interface RemoteFileContent {
-  path: string;
-  content: string;
-  file_name: string;
-}
-
-export const remoteConnect = (host: string, user: string, remoteRoot: string, port?: number, password?: string) =>
-  invoke<void>("remote_connect", { host, port, user, remoteRoot, password });
-
-export const remoteDisconnect = () =>
-  invoke<void>("remote_disconnect");
-
-export const remoteStatus = () =>
-  invoke<RemoteConnectionInfo | null>("remote_status");
-
-export const remoteListDirectory = (path: string) =>
-  invoke<RemoteFileEntry[]>("remote_list_directory", { path });
-
-export const remoteReadFile = (path: string) =>
-  invoke<RemoteFileContent>("remote_read_file", { path });
-
-export const remoteWriteFile = (path: string, content: string) =>
-  invoke<void>("remote_write_file", { path, content });
-
-export const remoteExec = (command: string) =>
-  invoke<string>("remote_exec", { command });
-
-// ── Collaborative Editing ───────────────────────────────────
-
-export interface CollabPeer {
-  id: string;
-  name: string;
-  cursor_line: number;
-  cursor_col: number;
-  color: string;
-}
-
-export interface CollabOperation {
-  client_id: string;
-  doc_path: string;
-  op: { Insert?: { pos: number; text: string }; Delete?: { pos: number; len: number } };
-  timestamp: number;
-}
-
-export const collabStartSession = (docPath: string, initialText: string) =>
-  invoke<string>("collab_start_session", { docPath, initialText });
-
-export const collabEndSession = (docPath: string) =>
-  invoke<void>("collab_end_session", { docPath });
-
-export const collabInsert = (docPath: string, pos: number, text: string) =>
-  invoke<CollabOperation>("collab_insert", { docPath, pos, text });
-
-export const collabDelete = (docPath: string, pos: number, len: number) =>
-  invoke<CollabOperation>("collab_delete", { docPath, pos, len });
-
-export const collabApplyRemote = (operation: CollabOperation) =>
-  invoke<void>("collab_apply_remote", { operation });
-
-export const collabGetText = (docPath: string) =>
-  invoke<string>("collab_get_text", { docPath });
-
-export const collabGetPeers = (docPath: string) =>
-  invoke<CollabPeer[]>("collab_get_peers", { docPath });
-
-export const collabUpdateCursor = (clientId: string, docPath: string, line: number, col: number) =>
-  invoke<void>("collab_update_cursor", { update: { client_id: clientId, doc_path: docPath, line, col } });
-
-export const collabActiveSessions = () =>
-  invoke<string[]>("collab_active_sessions");

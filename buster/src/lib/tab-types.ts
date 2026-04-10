@@ -13,7 +13,8 @@ export type TabType =
   | "github"
   | "explorer"
   | "problems"
-  | "search-results";
+  | "search-results"
+  | "surface";
 
 const IMAGE_EXTENSIONS = new Set([
   "png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg", "avif", "tiff", "tif",

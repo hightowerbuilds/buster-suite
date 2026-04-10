@@ -124,6 +124,99 @@ pub fn set_return(value: &serde_json::Value) {
     }
 }
 
+/// Text measurement results returned by `measure_text`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TextMetrics {
+    pub width: f64,
+    pub height: f64,
+    pub ascent: f64,
+    pub descent: f64,
+}
+
+/// Request a rendering surface. Returns a surface ID on success.
+///
+/// The surface is created with the given dimensions and a human-readable label
+/// (used for debugging). The returned ID is used in subsequent paint / resize /
+/// release calls.
+pub fn request_surface(width: u32, height: u32, label: &str) -> Result<u32, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let raw: String = unsafe { _host_request_surface(width, height, label)? };
+        raw.parse::<u32>().map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = (width, height, label);
+        Ok(1)
+    }
+}
+
+/// Paint a display list to a surface.
+///
+/// `commands` is a slice of JSON values that represent drawing commands
+/// understood by the host renderer.
+pub fn paint(surface_id: u32, commands: &[serde_json::Value]) -> Result<(), String> {
+    let json = serde_json::to_string(commands).map_err(|e| e.to_string())?;
+    #[cfg(target_arch = "wasm32")]
+    {
+        unsafe { _host_paint(surface_id, &json) }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = (surface_id, json);
+        Ok(())
+    }
+}
+
+/// Resize a surface to new dimensions.
+pub fn resize_surface(surface_id: u32, width: u32, height: u32) -> Result<(), String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        unsafe { _host_resize_surface(surface_id, width, height) }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = (surface_id, width, height);
+        Ok(())
+    }
+}
+
+/// Release a surface, freeing any associated host resources.
+pub fn release_surface(surface_id: u32) -> Result<(), String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        unsafe { _host_release_surface(surface_id) }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = surface_id;
+        Ok(())
+    }
+}
+
+/// Measure text dimensions using the host's text measurement engine.
+///
+/// `font` is a CSS-style font string (e.g. `"16px monospace"`).
+/// The result includes width, height, ascent, and descent.
+pub fn measure_text(text: &str, font: &str) -> Result<TextMetrics, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let json: String = unsafe { _host_measure_text(text, font)? };
+        serde_json::from_str(&json).map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // Mock: estimate 8px per character
+        let _ = font;
+        Ok(TextMetrics {
+            width: text.len() as f64 * 8.0,
+            height: 16.0,
+            ascent: 12.0,
+            descent: 4.0,
+        })
+    }
+}
+
 // WASM host function imports — these are linked by the Buster runtime.
 #[cfg(target_arch = "wasm32")]
 extern "C" {
@@ -134,4 +227,9 @@ extern "C" {
     fn _host_log(level: &str, message: &str);
     fn _host_notify(title: &str, message: &str);
     fn _host_set_return(json: &str);
+    fn _host_request_surface(width: u32, height: u32, label: &str) -> Result<String, String>;
+    fn _host_paint(surface_id: u32, commands_json: &str) -> Result<(), String>;
+    fn _host_resize_surface(surface_id: u32, width: u32, height: u32) -> Result<(), String>;
+    fn _host_release_surface(surface_id: u32) -> Result<(), String>;
+    fn _host_measure_text(text: &str, font: &str) -> Result<String, String>;
 }

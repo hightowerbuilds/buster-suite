@@ -1,5 +1,6 @@
 import { TOUR_STEPS } from "./tourSteps";
 import type { createMatrixRain } from "./tour-matrix-rain";
+import { measureTextWidth } from "../editor/text-measure";
 
 export interface SlideState {
   subtitleProgress: number;
@@ -67,7 +68,7 @@ function renderStandardSlide(
 
   // Typewriter cursor
   if (state.subtitleProgress < step.subtitle.length || Math.floor(time / 30) % 2 === 0) {
-    const cursorX = w / 2 + ctx.measureText(subText).width / 2 + 2;
+    const cursorX = w / 2 + measureTextWidth(subText, '16px "Courier New", Courier, monospace') / 2 + 2;
     ctx.fillStyle = `rgba(196, 206, 212, ${state.subtitleProgress < step.subtitle.length ? 1 : 0.6})`;
     ctx.fillRect(cursorX, subY, 2, 16);
   }

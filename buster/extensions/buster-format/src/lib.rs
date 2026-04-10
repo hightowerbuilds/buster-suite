@@ -13,6 +13,7 @@ use alloc::vec::Vec;
 
 // ── Host imports (provided by Buster runtime) ────────────────────────
 
+#[link(wasm_import_module = "buster")]
 extern "C" {
     fn log(level: i32, ptr: *const u8, len: usize);
     fn notify(title_ptr: *const u8, title_len: usize, msg_ptr: *const u8, msg_len: usize);

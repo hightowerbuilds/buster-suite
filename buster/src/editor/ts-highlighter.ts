@@ -126,8 +126,3 @@ export function spansToLineTokens(
   return result;
 }
 
-export function clearHighlightCache() {
-  cachedSpans = [];
-  cachedSource = null;
-  cachedFilePath = null;
-}

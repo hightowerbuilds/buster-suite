@@ -4,9 +4,6 @@ import { gitBlame } from "../lib/ipc";
 import { createEditorEngine, getCharWidth, type EditorEngine } from "./engine";
 import { requestHighlights, spansToLineTokens, setSyntaxPalette, type LineToken } from "./ts-highlighter";
 import { renderEditor } from "./canvas-renderer";
-// WebGL GPU text renderer — foundation built, disabled until canvas layering is tested
-// import { initWebGLText, disposeWebGLText, isWebGLActive } from "./webgl-text";
-// import { setGPURendering } from "./canvas-renderer";
 import { createAutocomplete } from "./editor-autocomplete";
 import { createHover } from "./editor-hover";
 import { createSignatureHelp } from "./editor-signature";
@@ -25,6 +22,7 @@ import { palette, apiKey as globalApiKey, workspaceRoot, tabTrapping } from "../
 interface CanvasEditorProps {
   initialText: string;
   filePath: string | null;
+  active?: boolean;
   onEngineReady?: (engine: EditorEngine) => void;
   onCursorChange?: (line: number, col: number) => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -809,6 +807,8 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
   function doRender() {
     renderScheduled = false;
     if (!canvasRef) return;
+    // Skip rendering when panel is hidden — canvas retains its last frame
+    if (props.active === false) return;
 
     refreshHighlights();
     inlayHints.requestHints();
@@ -864,12 +864,26 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     });
   }
 
-  // ── Resize ──────────────────────────────────────────────────────
+  // ── Resize (debounced) ──────────────────────────────────────────
+
+  let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+  const RESIZE_DEBOUNCE_MS = 60;
 
   function handleResize() {
     if (!containerRef) return;
-    setCanvasWidth(containerRef.clientWidth);
-    setCanvasHeight(containerRef.clientHeight);
+    const w = containerRef.clientWidth;
+    const h = containerRef.clientHeight;
+    // Ignore zero-size measurements (display: none)
+    if (w === 0 || h === 0) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (!containerRef) return;
+      const fw = containerRef.clientWidth;
+      const fh = containerRef.clientHeight;
+      if (fw === 0 || fh === 0) return;
+      setCanvasWidth(fw);
+      setCanvasHeight(fh);
+    }, RESIZE_DEBOUNCE_MS);
   }
 
   // ── Focus ───────────────────────────────────────────────────────
@@ -918,17 +932,13 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     const resizeObserver = new ResizeObserver(handleResize);
     if (containerRef) resizeObserver.observe(containerRef);
 
-    // WebGL GPU text renderer — foundation built but disabled by default.
-    // Enable via future settings toggle once canvas layering is fully tested.
-    // The WebGL canvas layer was causing scroll events to stop working.
-    // Code: initWebGLText(), setGPURendering(true), disposeWebGLText()
-
     scheduleRender();
     requestAnimationFrame(() => focusInput());
 
     onCleanup(() => {
       cancelAnimationFrame(animFrameId);
       cancelAnimationFrame(scrollRafId);
+      clearTimeout(resizeTimer);
       resizeObserver.disconnect();
       a11y.cleanup();
     });

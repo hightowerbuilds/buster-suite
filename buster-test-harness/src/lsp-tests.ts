@@ -78,8 +78,6 @@ export class LspTestClient {
   >();
   private diagnosticsMap = new Map<string, Diagnostic[]>();
   private readBuffer = "";
-  private readerDone = false;
-
   /**
    * Spawn a language server process and start reading its output.
    *
@@ -94,7 +92,6 @@ export class LspTestClient {
     this.diagnosticsMap.clear();
     this.pendingRequests.clear();
     this.readBuffer = "";
-    this.readerDone = false;
     this.nextId = 1;
 
     this.proc = Bun.spawn(serverCommand, {
@@ -337,7 +334,7 @@ export class LspTestClient {
     } catch {
       // Stream closed
     } finally {
-      this.readerDone = true;
+      // Stream finished
     }
   }
 

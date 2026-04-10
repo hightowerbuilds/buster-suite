@@ -76,6 +76,7 @@ keyring = "3"
 
 # Extension system
 wasmtime = "29"
+wasmtime-wasi = "29"
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 toml = "0.8"
 dirs = "6"

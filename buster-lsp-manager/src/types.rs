@@ -12,9 +12,6 @@ pub enum LspError {
     #[error("server failed to start: {name}: {reason}")]
     ServerStartFailed { name: String, reason: String },
 
-    #[error("request timed out: method={method}, id={id}")]
-    RequestTimeout { method: String, id: String },
-
     #[error("transport error: {0}")]
     Transport(String),
 

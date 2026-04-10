@@ -11,7 +11,7 @@ describe("Document", () => {
 
   test("applies insert operation", () => {
     const doc = new Document("test", "hello");
-    const op: InsertOp = { type: "insert", position: 5, text: " world", siteId: "A", timestamp: 1 };
+    const op: InsertOp = { type: "insert", position: 5, text: " world", siteId: "A" };
     doc.applyOperation(op, 0);
     expect(doc.getContent()).toBe("hello world");
     expect(doc.getVersion()).toBe(1);
@@ -19,7 +19,7 @@ describe("Document", () => {
 
   test("applies delete operation", () => {
     const doc = new Document("test", "hello world");
-    const op: DeleteOp = { type: "delete", position: 5, length: 6, siteId: "A", timestamp: 1 };
+    const op: DeleteOp = { type: "delete", position: 5, length: 6, siteId: "A" };
     doc.applyOperation(op, 0);
     expect(doc.getContent()).toBe("hello");
   });
@@ -28,12 +28,12 @@ describe("Document", () => {
     const doc = new Document("test", "hello");
 
     // Client A inserts at position 2, seeing version 0
-    const opA: InsertOp = { type: "insert", position: 2, text: "X", siteId: "A", timestamp: 1 };
+    const opA: InsertOp = { type: "insert", position: 2, text: "X", siteId: "A" };
     doc.applyOperation(opA, 0);
 
     // Client B inserts at position 4, also seeing version 0
     // Server should transform B against A
-    const opB: InsertOp = { type: "insert", position: 4, text: "Y", siteId: "B", timestamp: 2 };
+    const opB: InsertOp = { type: "insert", position: 4, text: "Y", siteId: "B" };
     const transformed = doc.applyOperation(opB, 0);
 
     expect(doc.getContent()).toBe("heXllYo");
@@ -54,8 +54,8 @@ describe("Document", () => {
 
   test("operations replay for reconnection", () => {
     const doc = new Document("test", "hello");
-    const op1: InsertOp = { type: "insert", position: 5, text: "!", siteId: "A", timestamp: 1 };
-    const op2: InsertOp = { type: "insert", position: 0, text: ">", siteId: "B", timestamp: 2 };
+    const op1: InsertOp = { type: "insert", position: 5, text: "!", siteId: "A" };
+    const op2: InsertOp = { type: "insert", position: 0, text: ">", siteId: "B" };
 
     doc.applyOperation(op1, 0);
     doc.applyOperation(op2, 1);
@@ -67,7 +67,7 @@ describe("Document", () => {
   test("snapshot", () => {
     const doc = new Document("test", "hello");
     doc.applyOperation(
-      { type: "insert", position: 5, text: "!", siteId: "A", timestamp: 1 },
+      { type: "insert", position: 5, text: "!", siteId: "A" },
       0,
     );
 

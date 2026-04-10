@@ -12,6 +12,11 @@
 //! - `log(level, message)` — Write to the extension log
 //! - `notify(title, message)` — Show a notification to the user
 //! - `set_return(value)` — Set the return value for the extension call
+//! - `request_surface(w, h, label)` — Request a rendering surface
+//! - `paint(surface_id, commands)` — Paint a display list to a surface
+//! - `resize_surface(surface_id, w, h)` — Resize a surface
+//! - `release_surface(surface_id)` — Release a surface
+//! - `measure_text(text, font)` — Measure text dimensions
 
 pub mod host;
 pub mod manifest;
@@ -19,6 +24,7 @@ pub mod manifest;
 pub use host::{
     log_debug, log_error, log_info, log_warn, notify, read_file, write_file,
     list_directory, run_command, set_return,
+    request_surface, paint, resize_surface, release_surface, measure_text, TextMetrics,
 };
 pub use manifest::ExtensionManifest;
 

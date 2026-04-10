@@ -1,4 +1,4 @@
-export interface Target {
+interface Target {
   x: number; y: number;
   ch: string;
   color: string;
@@ -6,7 +6,7 @@ export interface Target {
   alpha: number;
 }
 
-export interface RainDrop {
+interface RainDrop {
   x: number; y: number;
   speed: number;
   ch: string;

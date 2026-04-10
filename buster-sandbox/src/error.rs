@@ -17,10 +17,4 @@ pub enum SandboxError {
 
     #[error("process spawn failed: {0}")]
     SpawnFailed(#[from] std::io::Error),
-
-    #[error("sandbox configuration error: {0}")]
-    Config(String),
-
-    #[error("OS-level sandbox error: {0}")]
-    OsSandbox(String),
 }

@@ -21,6 +21,7 @@ pub async fn ext_list(
 pub async fn ext_load(
     app: AppHandle,
     state: State<'_, ExtensionManager>,
+    _surfaces: State<'_, crate::extensions::surface::SurfaceManager>,
     extension_id: String,
 ) -> Result<ExtensionInfo, String> {
     state.scan().await?;
@@ -30,7 +31,25 @@ pub async fn ext_load(
         let _ = app_handle.emit("gateway-event", &event);
     });
 
-    let info = state.load(&extension_id, event_sink).await?;
+    let surface_manager = Arc::new(crate::extensions::surface::SurfaceManager::new());
+    // Copy sinks from the global managed instance
+    {
+        let measure_app = app.clone();
+        surface_manager.set_measure_sink(Arc::new(move |req: crate::extensions::surface::MeasureTextRequest| {
+            let _ = measure_app.emit("surface-measure-text", &req);
+        }));
+        let surface_app = app.clone();
+        surface_manager.set_event_sink(Arc::new(move |event: crate::extensions::surface::SurfaceEvent| {
+            let _ = surface_app.emit("surface-event", &event);
+        }));
+    }
+
+    let measure_app = app.clone();
+    let measure_event_sink: Arc<dyn Fn(crate::extensions::surface::MeasureTextRequest) + Send + Sync> = Arc::new(move |req: crate::extensions::surface::MeasureTextRequest| {
+        let _ = measure_app.emit("surface-measure-text", &req);
+    });
+
+    let info = state.load(&extension_id, event_sink, surface_manager, measure_event_sink).await?;
 
     // Persist enabled state
     let enabled: Vec<String> = state.list().await.iter()
@@ -46,9 +65,10 @@ pub async fn ext_load(
 #[command]
 pub async fn ext_unload(
     state: State<'_, ExtensionManager>,
+    surfaces: State<'_, crate::extensions::surface::SurfaceManager>,
     extension_id: String,
 ) -> Result<(), String> {
-    state.unload(&extension_id).await?;
+    state.unload(&extension_id, &*surfaces).await?;
 
     // Persist enabled state
     let enabled: Vec<String> = state.list().await.iter()
@@ -79,7 +99,25 @@ pub async fn ext_restore(
         let event_sink = Arc::new(move |event: crate::extensions::gateway::GatewayEvent| {
             let _ = app_handle.emit("gateway-event", &event);
         });
-        match state.load(id, event_sink).await {
+
+        let surface_manager = Arc::new(crate::extensions::surface::SurfaceManager::new());
+        {
+            let measure_app = app.clone();
+            surface_manager.set_measure_sink(Arc::new(move |req: crate::extensions::surface::MeasureTextRequest| {
+                let _ = measure_app.emit("surface-measure-text", &req);
+            }));
+            let surface_app = app.clone();
+            surface_manager.set_event_sink(Arc::new(move |event: crate::extensions::surface::SurfaceEvent| {
+                let _ = surface_app.emit("surface-event", &event);
+            }));
+        }
+
+        let measure_app = app.clone();
+        let measure_event_sink: Arc<dyn Fn(crate::extensions::surface::MeasureTextRequest) + Send + Sync> = Arc::new(move |req: crate::extensions::surface::MeasureTextRequest| {
+            let _ = measure_app.emit("surface-measure-text", &req);
+        });
+
+        match state.load(id, event_sink, surface_manager, measure_event_sink).await {
             Ok(_) => restored.push(id.clone()),
             Err(e) => eprintln!("Failed to restore extension '{}': {}", id, e),
         }
@@ -186,10 +224,11 @@ pub async fn ext_install(
 pub async fn ext_uninstall(
     app: AppHandle,
     state: State<'_, ExtensionManager>,
+    surfaces: State<'_, crate::extensions::surface::SurfaceManager>,
     extension_id: String,
 ) -> Result<(), String> {
     // Unload if active
-    let _ = state.unload(&extension_id).await;
+    let _ = state.unload(&extension_id, &*surfaces).await;
 
     let ext_dir = app.path().app_config_dir()
         .unwrap_or_else(|_| std::path::PathBuf::from("."))
@@ -203,6 +242,32 @@ pub async fn ext_uninstall(
 
     state.scan().await?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn surface_measure_text_response(
+    surfaces: tauri::State<'_, crate::extensions::surface::SurfaceManager>,
+    request_id: u64,
+    width: f64,
+    height: f64,
+    ascent: f64,
+    descent: f64,
+) -> Result<(), String> {
+    surfaces.resolve_measure(
+        request_id,
+        crate::extensions::surface::TextMetrics { width, height, ascent, descent },
+    );
+    Ok(())
+}
+
+#[tauri::command]
+pub fn surface_resize_notify(
+    surfaces: tauri::State<'_, crate::extensions::surface::SurfaceManager>,
+    surface_id: u32,
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    surfaces.resize_surface(surface_id, width, height)
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {

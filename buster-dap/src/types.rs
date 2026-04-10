@@ -5,20 +5,8 @@ pub enum DapError {
     #[error("adapter not found: {name}")]
     AdapterNotFound { name: String },
 
-    #[error("adapter failed to start: {name}: {reason}")]
-    AdapterStartFailed { name: String, reason: String },
-
-    #[error("debug session not active")]
-    NoActiveSession,
-
-    #[error("request failed: {method}: {message}")]
-    RequestFailed { method: String, message: String },
-
     #[error("launch config error: {0}")]
     ConfigError(String),
-
-    #[error("transport error: {0}")]
-    Transport(String),
 
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),

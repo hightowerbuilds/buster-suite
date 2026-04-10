@@ -27,8 +27,10 @@ import {
 } from "./ipc";
 import { CATPPUCCIN, LIGHT_THEME, generatePalette, importVSCodeTheme, applyPaletteToCss, clearCssOverrides, type ThemePalette } from "./theme";
 import type { AppSettings } from "./ipc";
-import { persistSession, loadSessionFromDisk, loadBackup, deleteBackup, closeApp } from "./session";
+import { persistSession, loadSessionFromDisk, closeApp } from "./session";
 import { setupFileWatcher } from "./file-watcher";
+import { setupSurfaceMeasureListener } from "./surface-measure";
+import type { SurfaceEvent } from "./ipc";
 import { setupMenuHandlers } from "./menu-handlers";
 import { setRefreshDir } from "../ui/SidebarTree";
 import { listen } from "@tauri-apps/api/event";
@@ -87,7 +89,7 @@ const INITIAL_STATE: BusterStoreState = {
   syncing: false,
 
   layoutMode: "tabs" as LayoutMode,
-  sidebarWidth: 355,
+  sidebarWidth: 220,
   sidebarVisible: true,
 
   gitBranchName: null,
@@ -387,8 +389,6 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
   function createManualTab() { openSingletonTab("manual", "manual_tab", "Manual"); }
   function createDebugTab() { openSingletonTab("debug", "debug_tab", "Debug"); }
   function createProblemsTab() { openSingletonTab("problems", "problems_tab", "Problems"); }
-  function createSearchTab() { openSingletonTab("search-results", "search_tab", "Search"); }
-
   function popOutSidebar() {
     setStore("sidebarVisible", false);
     openSingletonTab("explorer", "explorer_tab", "Explorer");
@@ -723,6 +723,36 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     }
   }).then(u => menuListeners.push(u));
 
+  // Surface events from extensions
+  listen<SurfaceEvent>("surface-event", (event) => {
+    const { surface_id, kind, extension_id, content } = event.payload;
+    if (kind === "created") {
+      const meta = JSON.parse(content);
+      const tabId = `surface_${surface_id}`;
+      const newTab: Tab = {
+        id: tabId,
+        name: meta.label || `Surface ${surface_id}`,
+        path: JSON.stringify({ surface_id, extension_id, width: meta.width, height: meta.height }),
+        dirty: false,
+        type: "surface",
+      };
+      setStore("tabs", [...store.tabs, newTab]);
+      switchToTab(tabId);
+    } else if (kind === "released") {
+      const tabId = `surface_${surface_id}`;
+      const idx = store.tabs.findIndex((t) => t.id === tabId);
+      if (idx >= 0) {
+        setStore("tabs", store.tabs.filter((t) => t.id !== tabId));
+        if (store.activeTabId === tabId) {
+          setStore("activeTabId", store.tabs.length > 0 ? store.tabs[0].id : null);
+        }
+      }
+    }
+  }).then((u) => menuListeners.push(u));
+
+  // Text measurement listener for extension surfaces
+  setupSurfaceMeasureListener().then((u) => menuListeners.push(u));
+
   // Menu handlers
   setupMenuHandlers({ activeEngine, changeDirectory, closeDirectory })
     .then(handles => menuListeners.push(...handles));
@@ -737,7 +767,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
       setStore("layoutMode", (session.layout_mode as LayoutMode) || "tabs");
       setStore("sidebarVisible", session.sidebar_visible ?? true);
       const sw = session.sidebar_width;
-      setStore("sidebarWidth", sw && sw >= 140 && sw <= 600 ? sw : 355);
+      setStore("sidebarWidth", sw && sw >= 140 && sw <= 600 ? sw : 220);
 
       // Only restore non-workspace tabs (terminals, AI, settings, manual, etc.)
       // File and image tabs are skipped since no workspace is open on startup.

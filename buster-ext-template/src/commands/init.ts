@@ -17,7 +17,7 @@ import { generateFormatter } from "../templates/formatter.ts";
 import { generateLinter } from "../templates/linter.ts";
 import { generateLanguage } from "../templates/language.ts";
 
-export type TemplateName = "formatter" | "linter" | "language";
+type TemplateName = "formatter" | "linter" | "language";
 
 const TEMPLATES: Record<TemplateName, (dir: string, name: string) => Promise<void>> = {
   formatter: generateFormatter,

@@ -1,7 +1,7 @@
 import type { SearchMatch, CompletionItem, CursorPos, LspSignatureHelp, LspCodeAction, DiffHunk, GitBlameLine } from "../lib/ipc";
 import type { LineToken } from "./ts-highlighter";
 import { type DisplayRow, PADDING_LEFT, computeDisplayRows } from "./engine";
-import { getCharWidth, FONT_FAMILY } from "./text-measure";
+import { getCharWidth, FONT_FAMILY, measureTextWidth } from "./text-measure";
 import { type ThemePalette, drawVignette, drawGrain, applyCursorGlow, clearCursorGlow } from "../lib/theme";
 import { isWebGLActive, beginTextFrame, queueText, flushTextFrame } from "./webgl-text";
 
@@ -904,9 +904,8 @@ function drawSignatureHelp(
     }
   }
 
-  // Measure width
-  ctx.font = font;
-  const sigW = Math.min(Math.max(ctx.measureText(sig.label).width + 24, 200), w - 40);
+  // Measure width via Pretext
+  const sigW = Math.min(Math.max(measureTextWidth(sig.label, font) + 24, 200), w - 40);
   const sigH = lineHeight + 8;
 
   if (tipX + sigW > w) tipX = w - sigW - 8;
