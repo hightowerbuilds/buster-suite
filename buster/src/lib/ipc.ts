@@ -477,6 +477,7 @@ export const aiCancel = () =>
 export interface ExtensionCommand {
   id: string;
   label: string;
+  kind: string;
 }
 
 export interface ExtensionInfo {
@@ -544,6 +545,9 @@ export interface SurfaceEvent {
 export const surfaceMeasureTextResponse = (
   requestId: number, width: number, height: number, ascent: number, descent: number,
 ) => invoke<void>("surface_measure_text_response", { requestId, width, height, ascent, descent });
+
+export const surfaceGetLastPaint = (surfaceId: number) =>
+  invoke<string | null>("surface_get_last_paint", { surfaceId });
 
 export const surfaceResizeNotify = (surfaceId: number, width: number, height: number) =>
   invoke<void>("surface_resize_notify", { surfaceId, width, height });

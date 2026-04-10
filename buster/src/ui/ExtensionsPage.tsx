@@ -1,6 +1,6 @@
 import { Component, createSignal, For, Show, onMount } from "solid-js";
 import { listExtensions, loadExtension, unloadExtension, type ExtensionInfo } from "../lib/extension-host";
-import { extInstall, extUninstall } from "../lib/ipc";
+import { extInstall, extUninstall, extCall } from "../lib/ipc";
 import { showToast } from "./CanvasToasts";
 
 const CAPABILITY_LABELS: Record<string, string> = {
@@ -45,6 +45,19 @@ const ExtensionsPage: Component = () => {
     }
   }
 
+  async function handleLaunch(ext: ExtensionInfo, commandId: string) {
+    try {
+      // Auto-enable if not active
+      if (!ext.active) {
+        await loadExtension(ext.id);
+        await refresh();
+      }
+      await extCall(ext.id, commandId);
+    } catch (e) {
+      showToast(`Launch failed: ${String(e)}`, "error");
+    }
+  }
+
   async function handleInstall() {
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
@@ -83,42 +96,61 @@ const ExtensionsPage: Component = () => {
         </Show>
 
         <For each={extensions()}>
-          {(ext) => (
-            <div class="ext-card">
-              <div class="ext-card-header">
-                <span class="ext-card-name">{ext.name}</span>
-                <span class="ext-card-version">v{ext.version}</span>
-                <button
-                  class={`ext-toggle-btn ${ext.active ? "ext-toggle-active" : ""}`}
-                  onClick={() => handleToggle(ext)}
-                >
-                  {ext.active ? "Disable" : "Enable"}
-                </button>
-              </div>
-              <Show when={ext.description}>
-                <div class="ext-card-desc">{ext.description}</div>
-              </Show>
-              <Show when={ext.capabilities.length > 0}>
-                <div class="ext-card-caps">
-                  <For each={ext.capabilities}>
-                    {(cap) => (
-                      <span class="ext-cap-badge" title={CAPABILITY_LABELS[cap] ?? cap}>{cap}</span>
-                    )}
-                  </For>
+          {(ext) => {
+            const launchCmds = () => ext.commands.filter(c => c.kind === "launch");
+            const hasLaunch = () => launchCmds().length > 0;
+
+            return (
+              <div class="ext-card">
+                <div class="ext-card-header">
+                  <span class="ext-card-name">{ext.name}</span>
+                  <span class="ext-card-version">v{ext.version}</span>
+                  <Show when={hasLaunch()}>
+                    <For each={launchCmds()}>
+                      {(cmd) => (
+                        <button
+                          class="ext-launch-btn"
+                          onClick={() => handleLaunch(ext, cmd.id)}
+                        >
+                          {cmd.label}
+                        </button>
+                      )}
+                    </For>
+                  </Show>
+                  <Show when={!hasLaunch()}>
+                    <button
+                      class={`ext-toggle-btn ${ext.active ? "ext-toggle-active" : ""}`}
+                      onClick={() => handleToggle(ext)}
+                    >
+                      {ext.active ? "Disable" : "Enable"}
+                    </button>
+                  </Show>
                 </div>
-              </Show>
-              <div class="ext-card-actions">
-                <Show when={confirmUninstall() === ext.id}>
-                  <span class="ext-confirm-text">Uninstall {ext.name}?</span>
-                  <button class="ext-confirm-yes" onClick={() => handleUninstall(ext.id)}>Yes</button>
-                  <button class="ext-confirm-no" onClick={() => setConfirmUninstall(null)}>No</button>
+                <Show when={ext.description}>
+                  <div class="ext-card-desc">{ext.description}</div>
                 </Show>
-                <Show when={confirmUninstall() !== ext.id}>
-                  <button class="ext-uninstall-btn" onClick={() => setConfirmUninstall(ext.id)}>Uninstall</button>
+                <Show when={ext.capabilities.length > 0}>
+                  <div class="ext-card-caps">
+                    <For each={ext.capabilities}>
+                      {(cap) => (
+                        <span class="ext-cap-badge" title={CAPABILITY_LABELS[cap] ?? cap}>{cap}</span>
+                      )}
+                    </For>
+                  </div>
                 </Show>
+                <div class="ext-card-actions">
+                  <Show when={confirmUninstall() === ext.id}>
+                    <span class="ext-confirm-text">Uninstall {ext.name}?</span>
+                    <button class="ext-confirm-yes" onClick={() => handleUninstall(ext.id)}>Yes</button>
+                    <button class="ext-confirm-no" onClick={() => setConfirmUninstall(null)}>No</button>
+                  </Show>
+                  <Show when={confirmUninstall() !== ext.id}>
+                    <button class="ext-uninstall-btn" onClick={() => setConfirmUninstall(ext.id)}>Uninstall</button>
+                  </Show>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          }}
         </For>
       </div>
     </div>

@@ -21,6 +21,7 @@ use runtime::{ExtensionInstance, WasmRuntime};
 pub struct ExtensionCommand {
     pub id: String,
     pub label: String,
+    pub kind: String,
 }
 
 /// Serializable extension info for the frontend.
@@ -43,7 +44,7 @@ impl From<&ExtensionManifest> for ExtensionInfo {
             version: m.extension.version.clone(),
             description: m.extension.description.clone(),
             capabilities: m.capabilities.to_list(),
-            commands: m.commands.iter().map(|c| ExtensionCommand { id: c.id.clone(), label: c.label.clone() }).collect(),
+            commands: m.commands.iter().map(|c| ExtensionCommand { id: c.id.clone(), label: c.label.clone(), kind: c.kind.clone() }).collect(),
             active: false,
         }
     }
@@ -59,6 +60,8 @@ pub struct ExtensionManager {
     discovered: Arc<Mutex<HashMap<String, (ExtensionManifest, PathBuf)>>>,
     /// Workspace root — shared with extensions
     workspace_root: Arc<Mutex<Option<String>>>,
+    /// Shared surface manager — all extensions use this so buffered paints are accessible
+    shared_surface_manager: Arc<surface::SurfaceManager>,
 }
 
 impl ExtensionManager {
@@ -68,7 +71,13 @@ impl ExtensionManager {
             instances: Arc::new(Mutex::new(HashMap::new())),
             discovered: Arc::new(Mutex::new(HashMap::new())),
             workspace_root: Arc::new(Mutex::new(None)),
+            shared_surface_manager: Arc::new(surface::SurfaceManager::new()),
         }
+    }
+
+    /// Get the shared surface manager.
+    pub fn surface_manager(&self) -> Arc<surface::SurfaceManager> {
+        self.shared_surface_manager.clone()
     }
 
     /// Set the workspace root (called when user opens a folder).
@@ -278,7 +287,7 @@ pub fn load_enabled_state() -> Vec<String> {
 }
 
 /// Get the extensions directory: ~/.buster/extensions/
-fn extensions_dir() -> PathBuf {
+pub fn extensions_dir() -> PathBuf {
     buster_dir().join("extensions")
 }
 

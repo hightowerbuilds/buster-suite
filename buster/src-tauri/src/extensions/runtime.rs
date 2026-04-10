@@ -121,6 +121,9 @@ impl ExtensionInstance {
     /// For bare modules, uses alloc/memory/set_return convention.
     /// For WASI modules, passes params via stdin and captures stdout.
     pub fn call_method(&mut self, method: &str, params: &str) -> Result<String, String> {
+        // Reset epoch deadline before each call so it doesn't expire between calls
+        self.store.set_epoch_deadline(50);
+
         if self.is_wasi() {
             return self.call_wasi_method(method, params);
         }
@@ -317,9 +320,9 @@ fn link_host_functions(linker: &mut Linker<ExtensionState>, _caps: &super::manif
     })?;
 
     // --- Notify (requires notifications capability) ---
-    linker.func_wrap("buster", "notify", |mut caller: Caller<'_, ExtensionState>, title_ptr: i32, title_len: i32, msg_ptr: i32, msg_len: i32| -> i32 {
+    linker.func_wrap("buster", "notify", |mut caller: Caller<'_, ExtensionState>, title_ptr: i32, title_len: i32, msg_ptr: i32, msg_len: i32| {
         if !caller.data().manifest.capabilities.notifications {
-            return -1; // Permission denied
+            return; // Permission denied
         }
         let (title, body) = if let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) {
             let mut tbuf = vec![0u8; title_len as usize];
@@ -332,7 +335,7 @@ fn link_host_functions(linker: &mut Linker<ExtensionState>, _caps: &super::manif
             } else { "".into() };
             (t, m)
         } else {
-            return -1;
+            return;
         };
         let ext_id = caller.data().manifest.extension.id.clone();
         let event = GatewayEvent {
@@ -343,7 +346,6 @@ fn link_host_functions(linker: &mut Linker<ExtensionState>, _caps: &super::manif
             tool_name: None,
         };
         (caller.data().event_sink)(event);
-        0
     })?;
 
     // --- Set return buffer (internal mechanism for returning data to host) ---

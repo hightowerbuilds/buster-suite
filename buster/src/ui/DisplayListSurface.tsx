@@ -1,7 +1,7 @@
 import { Component, onMount, onCleanup } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { paintDisplayList, clearImageCache, type DrawCommand } from "./DisplayListPainter";
-import { surfaceResizeNotify } from "../lib/ipc";
+import { surfaceResizeNotify, surfaceGetLastPaint } from "../lib/ipc";
 
 interface SurfaceEvent {
   surface_id: number;
@@ -68,6 +68,16 @@ const DisplayListSurface: Component<DisplayListSurfaceProps> = (props) => {
         } catch {}
       }
     });
+
+    // Fetch any buffered paint from before this component mounted
+    surfaceGetLastPaint(props.surfaceId).then((content) => {
+      if (content) {
+        try {
+          const commands: DrawCommand[] = JSON.parse(content);
+          paint(commands);
+        } catch {}
+      }
+    }).catch(() => {});
 
     // Watch container size changes
     const observer = new ResizeObserver((entries) => {

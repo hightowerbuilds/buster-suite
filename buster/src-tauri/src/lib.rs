@@ -309,6 +309,7 @@ pub fn run() {
             commands::extensions::ext_install,
             commands::extensions::ext_uninstall,
             commands::extensions::surface_measure_text_response,
+            commands::extensions::surface_get_last_paint,
             commands::extensions::surface_resize_notify,
             // Browser
             commands::browser::create_browser_view,

@@ -84,9 +84,18 @@ pub struct ServiceDecl {
     pub auto_start: bool,
 }
 
-/// A command the extension contributes to the command palette.
+/// A command the extension contributes.
+/// `kind` controls how the IDE presents the command:
+///   "launch" — button on the extension card that opens a tab
+///   "palette" (default) — only appears in the command palette
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandDecl {
     pub id: String,
     pub label: String,
+    #[serde(default = "default_command_kind")]
+    pub kind: String,
+}
+
+fn default_command_kind() -> String {
+    "palette".to_string()
 }

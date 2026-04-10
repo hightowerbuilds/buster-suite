@@ -35,6 +35,8 @@ struct SurfaceRecord {
     width: u32,
     height: u32,
     label: String,
+    /// Last display list JSON — buffered so late-mounting frontends can fetch it
+    last_paint: Option<String>,
 }
 
 pub struct SurfaceManager {
@@ -75,6 +77,7 @@ impl SurfaceManager {
             width,
             height,
             label: label.to_string(),
+            last_paint: None,
         };
         self.surfaces.lock().unwrap().insert(id, record);
 
@@ -95,9 +98,10 @@ impl SurfaceManager {
     }
 
     pub fn paint(&self, surface_id: u32, display_list_json: &str) -> Result<(), String> {
-        let surfaces = self.surfaces.lock().unwrap();
-        let record = surfaces.get(&surface_id)
+        let mut surfaces = self.surfaces.lock().unwrap();
+        let record = surfaces.get_mut(&surface_id)
             .ok_or_else(|| format!("Surface {} not found", surface_id))?;
+        record.last_paint = Some(display_list_json.to_string());
         let ext_id = record.extension_id.clone();
         drop(surfaces);
 
@@ -109,6 +113,12 @@ impl SurfaceManager {
         });
 
         Ok(())
+    }
+
+    /// Get the last paint content for a surface (for late-mounting frontends).
+    pub fn get_last_paint(&self, surface_id: u32) -> Option<String> {
+        let surfaces = self.surfaces.lock().unwrap();
+        surfaces.get(&surface_id).and_then(|r| r.last_paint.clone())
     }
 
     pub fn resize_surface(&self, surface_id: u32, width: u32, height: u32) -> Result<(), String> {

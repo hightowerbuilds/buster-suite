@@ -31,8 +31,8 @@ pub async fn ext_load(
         let _ = app_handle.emit("gateway-event", &event);
     });
 
-    let surface_manager = Arc::new(crate::extensions::surface::SurfaceManager::new());
-    // Copy sinks from the global managed instance
+    // Use the shared SurfaceManager from ExtensionManager
+    let surface_manager = state.surface_manager();
     {
         let measure_app = app.clone();
         surface_manager.set_measure_sink(Arc::new(move |req: crate::extensions::surface::MeasureTextRequest| {
@@ -100,7 +100,7 @@ pub async fn ext_restore(
             let _ = app_handle.emit("gateway-event", &event);
         });
 
-        let surface_manager = Arc::new(crate::extensions::surface::SurfaceManager::new());
+        let surface_manager = state.surface_manager();
         {
             let measure_app = app.clone();
             surface_manager.set_measure_sink(Arc::new(move |req: crate::extensions::surface::MeasureTextRequest| {
@@ -177,7 +177,7 @@ pub async fn ext_call(
 /// Install an extension from a local directory path.
 #[command]
 pub async fn ext_install(
-    app: AppHandle,
+    _app: AppHandle,
     state: State<'_, ExtensionManager>,
     source_path: String,
 ) -> Result<ExtensionInfo, String> {
@@ -198,10 +198,7 @@ pub async fn ext_install(
         .ok_or("extension.toml missing [extension].id")?;
 
     // Copy to extensions directory
-    let ext_dir = app.path().app_config_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("."))
-        .parent().unwrap_or(Path::new(".")).to_path_buf()
-        .join(".buster").join("extensions").join(ext_id);
+    let ext_dir = crate::extensions::extensions_dir().join(ext_id);
 
     if ext_dir.exists() {
         fs::remove_dir_all(&ext_dir)
@@ -222,7 +219,7 @@ pub async fn ext_install(
 /// Uninstall an extension by ID.
 #[command]
 pub async fn ext_uninstall(
-    app: AppHandle,
+    _app: AppHandle,
     state: State<'_, ExtensionManager>,
     surfaces: State<'_, crate::extensions::surface::SurfaceManager>,
     extension_id: String,
@@ -230,15 +227,19 @@ pub async fn ext_uninstall(
     // Unload if active
     let _ = state.unload(&extension_id, &*surfaces).await;
 
-    let ext_dir = app.path().app_config_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("."))
-        .parent().unwrap_or(Path::new(".")).to_path_buf()
-        .join(".buster").join("extensions").join(&extension_id);
+    let ext_dir = crate::extensions::extensions_dir().join(&extension_id);
 
     if ext_dir.exists() {
         fs::remove_dir_all(&ext_dir)
             .map_err(|e| format!("Failed to remove extension directory: {}", e))?;
     }
+
+    // Remove from persisted enabled state
+    let enabled: Vec<String> = state.list().await.iter()
+        .filter(|e| e.active && e.id != extension_id)
+        .map(|e| e.id.clone())
+        .collect();
+    save_enabled_state(&enabled);
 
     state.scan().await?;
     Ok(())
@@ -258,6 +259,14 @@ pub fn surface_measure_text_response(
         crate::extensions::surface::TextMetrics { width, height, ascent, descent },
     );
     Ok(())
+}
+
+#[tauri::command]
+pub async fn surface_get_last_paint(
+    state: tauri::State<'_, ExtensionManager>,
+    surface_id: u32,
+) -> Result<Option<String>, String> {
+    Ok(state.surface_manager().get_last_paint(surface_id))
 }
 
 #[tauri::command]
