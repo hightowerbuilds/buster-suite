@@ -223,7 +223,7 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
     // Auto-reassemble after drag stops (2 seconds of no dragging)
     if (!dragging && particles.some(p => p.falling || p.landed)) {
       reassembleTimer++;
-      if (reassembleTimer > 120) {
+      if (reassembleTimer > 300) {
         for (const p of particles) {
           if (p.falling || p.landed) {
             p.falling = false;
