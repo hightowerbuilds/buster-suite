@@ -8,14 +8,15 @@ Buster is a desktop code editor that renders everything — the editor, terminal
 
 ### Core Features
 
-- **Canvas-rendered editor** with Tree-sitter syntax highlighting, multi-cursor editing, word wrap, and virtual scrolling
-- **Full terminal emulator** with real PTY support — runs NeoVim, htop, tmux, and anything else you'd run in a native terminal
-- **Integrated AI agent** powered by Claude (Sonnet, Opus, Haiku) that can read files, write code, search the codebase, and run commands with user approval
-- **Git integration** with 28 built-in commands, a visual commit graph with colored lanes, blame overlay, diff gutters, staging, and conflict detection
-- **LSP support** for Rust, TypeScript/JavaScript, Python, and Go — autocomplete, hover, diagnostics, go-to-definition
-- **WASM-sandboxed extensions** with a capability-based permission system
+- **Canvas-rendered editor** with Tree-sitter syntax highlighting (100+ languages), code folding, minimap, multi-cursor editing, find/replace with regex, AI ghost text completions, and large file streaming (50 MB+)
+- **Full terminal emulator** with real PTY support, sixel image rendering, and configurable themes — runs NeoVim, htop, tmux, and anything else you'd run in a native terminal
+- **Integrated AI agent** supporting Claude (Sonnet 4.6, Opus 4.6, Haiku 4.5), Ollama (local), Codex (OpenAI), and Gemini (Google) — reads files, writes code, searches the codebase, and runs commands with user approval and configurable rate limits
+- **Git & GitHub** with 30 built-in commands, a visual commit graph with colored lanes, blame overlay, diff gutters, staging, conflict resolution, remote management, and GitHub PR/issue browsing via gh CLI
+- **LSP support** for Rust, TypeScript/JavaScript, Python, and Go — autocomplete, hover, diagnostics, go-to-definition, rename refactoring, find all references, and a diagnostics panel
+- **DAP-based debugger** with breakpoints, stepping, stack frames, and variable inspection
+- **WASM-sandboxed extensions** with capability-based permissions and custom UI surfaces
 - **Quick Open** (Cmd+P) with fuzzy search and prefix modes for commands, line numbers, symbols, and search
-- **Multiple layout modes** — Tabs, Columns, Grid, Trio, Quint, Restack
+- **Multiple layout modes** — Tabs, Columns, Grid, Trio, Quint, Rerack, and HQ (3x2 grid)
 - **Session restore** that auto-saves every 30 seconds and reopens your workspace exactly as you left it
 
 ### Tech Stack
@@ -30,7 +31,7 @@ Buster is a desktop code editor that renders everything — the editor, terminal
 | Text measurement | Pretext (600x faster than DOM layout) |
 | Terminal parsing | vt100 crate + portable-pty |
 | Extensions | wasmtime (WASM sandbox) |
-| AI | Claude via Anthropic API |
+| AI | Claude API + Ollama + Codex + Gemini |
 | Theme | Catppuccin Mocha |
 | Editor font | JetBrains Mono |
 
@@ -43,6 +44,13 @@ buster-suite/
 ├── buster-path/            Cross-platform path utilities
 ├── buster-sandbox/         Allowlist-based command execution sandbox
 ├── buster-test-harness/    End-to-end IDE test framework
+├── buster-lsp-manager/     LSP lifecycle, incremental sync, crash recovery
+├── buster-syntax/          Incremental Tree-sitter parsing
+├── buster-ext-template/    Extension SDK, CLI tooling, and starter kit
+├── buster-dap/             Debug adapter management and event forwarding
+├── buster-terminal-pro/    Terminal hardening — themes, sixel, search, scrollback
+├── buster-remote/          Remote development via async SSH
+├── buster-collab-server/   Real-time collaboration sync server (CRDT-based)
 └── supporting-projects.md  Full roadmap of supporting libraries
 ```
 
@@ -52,7 +60,7 @@ The IDE itself. A Tauri v2 application with a Rust backend handling file I/O, gi
 
 ### buster-website/
 
-The marketing and landing page for Buster. Built with TanStack Start and Vite, it is itself a pure canvas application — no DOM text nodes. Features a particle system, scroll-based animations, and procedural rendering of all page sections.
+The marketing and landing page for Buster. Built with Vite and SolidJS, it is itself a pure canvas application — no DOM text nodes. Features a particle system, scroll-based animations, and procedural rendering of all page sections.
 
 ### buster-path/
 
@@ -117,23 +125,23 @@ The full roadmap for production readiness is documented in [`supporting-projects
 
 | Project | Status | Purpose |
 |---|---|---|
-| buster-lsp-manager | Planned | Incremental LSP sync, crash recovery, server auto-install |
-| buster-syntax | Planned | Incremental Tree-sitter parsing (reparse only changed ranges) |
-| buster-ext-template | Planned | Extension SDK, CLI tooling, and starter kit |
+| buster-lsp-manager | Built | Incremental LSP sync, crash recovery, server auto-install |
+| buster-syntax | Built | Incremental Tree-sitter parsing (reparse only changed ranges) |
+| buster-ext-template | Built | Extension SDK, CLI tooling, and starter kit |
 
 ### Tier C — Feature Completion (needed for competitive positioning)
 
 | Project | Status | Purpose |
 |---|---|---|
-| buster-dap | Planned | Debug adapter management, event forwarding, launch configs |
-| buster-terminal-pro | Planned | Terminal hardening — themes, image protocols, crash recovery |
-| buster-remote | Planned | Remote development via async SSH |
+| buster-dap | Built | Debug adapter management, event forwarding, launch configs |
+| buster-terminal-pro | Built | Terminal hardening — themes, image protocols, crash recovery |
+| buster-remote | Built | Remote development via async SSH |
 
 ### Tier D — Differentiation
 
 | Project | Status | Purpose |
 |---|---|---|
-| buster-collab-server | Planned | Real-time collaboration sync server (CRDT-based) |
+| buster-collab-server | Built | Real-time collaboration sync server (CRDT-based) |
 
 ### Dependency Cascade
 
@@ -142,14 +150,14 @@ These projects are not independent. The integration order matters:
 ```
 buster-path (no dependencies) ✅
     ├── buster-sandbox (needs path validation) ✅
-    │       └── buster-ext-template (SDK wraps sandboxed execution)
-    ├── buster-lsp-manager (needs proper URI encoding)
-    │       └── buster-remote (remote LSP bridge)
-    └── buster-syntax (shares "edit range" prerequisite with LSP)
+    │       └── buster-ext-template (SDK wraps sandboxed execution) ✅
+    ├── buster-lsp-manager (needs proper URI encoding) ✅
+    │       └── buster-remote (remote LSP bridge) ✅
+    └── buster-syntax (shares "edit range" prerequisite with LSP) ✅
 
-buster-dap (independent)
-buster-terminal-pro (independent)
-buster-collab-server (independent, but integration touches editor core)
+buster-dap (independent) ✅
+buster-terminal-pro (independent) ✅
+buster-collab-server (independent, but integration touches editor core) ✅
 buster-test-harness (wraps everything — grows continuously) ✅
 ```
 

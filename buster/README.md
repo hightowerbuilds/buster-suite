@@ -38,7 +38,7 @@ This starts the app with hot-reload for the frontend. Rust changes trigger an au
 
 ### Getting started
 
-Open Buster. The welcome screen shows an ASCII particle animation. Press **Cmd+T** to take the guided tour, or open a folder from the sidebar to start editing.
+Open Buster. The welcome screen shows an ASCII particle animation. Open the command palette (**Cmd+Shift+P**) and run "Start Guided Tour", or open a folder from the sidebar to start editing.
 
 ### Keyboard shortcuts
 
@@ -49,41 +49,45 @@ Open Buster. The welcome screen shows an ASCII particle animation. Press **Cmd+T
 | Cmd+Shift+Z | Redo |
 | Cmd+F | Find / Replace |
 | Cmd+P | Quick Open (fuzzy file search) |
-| Cmd+Shift+P | Command Palette |
+| Cmd+Shift+P | Show All Commands |
 | Ctrl+G | Go to Line |
-| Ctrl+` | New terminal tab |
+| Cmd+Shift+O | Go to Symbol |
+| Cmd+T | New terminal tab |
 | Cmd+L | AI Agent |
 | Cmd+Shift+G | Git panel |
-| Cmd+Shift+B | Git blame |
+| Cmd+B | Toggle sidebar |
+| Cmd+O | Open folder |
 | Cmd+W | Close tab |
 | Cmd+, | Settings |
 | F8 / Shift+F8 | Next / Previous diagnostic |
-| Cmd+T | Guided tour (on welcome screen) |
+| F6 / Shift+F6 | Cycle focus between regions |
 | Escape | Close overlays |
 
 ### Features
 
-**Editor** — Canvas-rendered with a TypeScript string[] buffer (SolidJS signals). Syntax highlighting via Tree-sitter for JavaScript, TypeScript, TSX, Rust, Python, JSON, and CSS. Undo/redo with time-based grouping. Multi-cursor. Word wrap with display-row movement. Sticky column for vertical navigation. Mouse selection. Virtual scrolling. Blog mode for markdown files.
+**Editor** — Canvas-rendered with a TypeScript string[] buffer (SolidJS signals). Syntax highlighting via Tree-sitter for 100+ languages. Code folding, find/replace with regex, minimap, multi-cursor editing, word wrap, virtual scrolling, AI ghost text completions. Large files (50 MB+) are streamed on demand. Markdown preview mode for .md files. Image viewer for PNG, JPG, GIF, and WebP.
 
-**Terminal** — Full terminal emulator rendered on canvas. VT100/ANSI parsing happens in Rust via the vt100 crate. Supports NeoVim, htop, tmux, and anything else that runs in a terminal. Mouse reporting, bracketed paste, scrollback history. Each terminal opens as a tab alongside your files.
+**Terminal** — Full terminal emulator rendered on canvas. VT100/ANSI parsing in Rust via the vt100 crate with sixel image support. Supports NeoVim, htop, tmux, and anything else that runs in a terminal. Mouse reporting, bracketed paste, scrollback history, configurable themes. Each terminal opens as a tab alongside your files.
 
-**AI Agent** — Chat with Claude (Sonnet 4.6, Opus 4.6, Haiku 4.5) or local models directly in the IDE. The agent can read files, write code, search the codebase, and run commands in your workspace. State-changing tools require user approval. Model gallery with card-flip UI for browsing and queuing models. API keys stored securely per provider.
+**AI Agent** — Chat with Claude (Sonnet 4.6, Opus 4.6, Haiku 4.5), Ollama (local), Codex (OpenAI), or Gemini (Google). The agent can read files, write code, search the codebase, and run commands in your workspace. State-changing tools require user approval. Configurable rate limits for tool calls, writes, and commands. Model gallery with card-flip UI for browsing and queuing models. API keys stored securely per provider.
 
-**Git Integration** — 28 built-in git commands with no terminal required. Status, staging, commit (with amend), push/pull/fetch, branches, stash, blame (Cmd+Shift+B overlay), diff gutter indicators, conflict detection, and a canvas-rendered commit graph with colored lanes.
+**Git & GitHub** — 30 built-in git commands with no terminal required. Status, staging, commit (with amend), push/pull/fetch, branches, stash, remote management, blame overlay, diff gutter indicators, conflict resolution, and a canvas-rendered commit graph with colored lanes. Browse GitHub PRs and issues directly in the editor via the gh CLI.
 
-**LSP** — Language server support for Rust (rust-analyzer), TypeScript/JavaScript (typescript-language-server), Python (pyright), and Go (gopls). Autocomplete, hover, signature help, code actions, inlay hints, go-to-definition, document symbols, and diagnostic squiggles.
+**LSP** — Language server support for Rust (rust-analyzer), TypeScript/JavaScript (typescript-language-server), Python (pyright), and Go (gopls). Autocomplete, hover, signature help, code actions, inlay hints, go-to-definition, document symbols, rename refactoring, find all references, and a diagnostics panel with automatic crash recovery.
+
+**Debugger** — DAP-based debugging. Set breakpoints (with conditions), launch programs, step over/into/out, pause, and inspect stack frames and variables. Works with any Debug Adapter Protocol server.
 
 **Quick Open** — Cmd+P opens a fuzzy file search across your workspace. Respects .gitignore. Prefix modes: `>` commands, `:` go-to-line, `@` symbols, `#` content search, `?` AI.
 
-**Find & Replace** — Cmd+F with match highlighting, case sensitivity toggle, replace one or replace all.
+**Find & Replace** — Cmd+F with regex support, match highlighting, case sensitivity toggle, replace one or replace all.
 
-**Layouts** — Panel layout modes: Tabs, Columns, Grid, Trio, Quint, Restack. Draggable dividers between panels.
+**Layouts** — Panel layout modes: Tabs, Columns, Grid, Trio, Quint, Rerack, and HQ (3x2 grid). Draggable dividers between panels.
 
 **File Explorer** — Sidebar with lazy-loading directory tree. Respects .gitignore. Drag and drop files between folders. Right-click context menu with rename, delete, copy path.
 
 **Session Restore** — Auto-saves every 30 seconds. Hot-exit on window close. Restores workspace, tabs, cursor positions, and dirty buffers on relaunch.
 
-**Extensions** — WASM-sandboxed extensions with capability-based permissions. WebSocket gateway for persistent connections to external services.
+**Extensions** — WASM-sandboxed extensions with capability-based permissions. Extensions can render custom UI surfaces, connect via WebSocket or HTTP SSE gateways to external services.
 
 **Guided Tour** — An 11-step canvas-animated tutorial that teaches every feature including git and AI integration. Each step assembles as ASCII particle text.
 
@@ -92,16 +96,16 @@ Open Buster. The welcome screen shows an ASCII particle animation. Press **Cmd+T
 ```
 src/                          Frontend (TypeScript + SolidJS)
   editor/                     Canvas editor, engine, Tree-sitter bridge, LSP features
-  ui/                         Sidebar, tabs, terminal, AI chat, git, command palette, tour
+  ui/                         Sidebar, tabs, terminal, AI chat, git, debugger, command palette, tour
   lib/                        IPC bridge, TanStack Query, commands, menu handlers, session
-  styles/                     CSS (Catppuccin Mocha theme)
 
 src-tauri/src/                Backend (Rust)
   ai/                         Agent loop, tool execution, approval manager
-  commands/                   IPC handlers (file, git, lsp, terminal, ai, extensions, session)
-  extensions/                 WASM runtime, gateway, manifest
+  commands/                   IPC handlers (file, git, lsp, terminal, ai, extensions, debugger, session)
+  debugger/                   DAP client and session manager
+  extensions/                 WASM runtime, gateway, manifest, UI surfaces
   lsp/                        Language server client, diagnostic forwarding
-  syntax/                     Tree-sitter highlighting (7 languages)
+  syntax/                     Tree-sitter highlighting (100+ languages)
   terminal/                   VT100 state (vt100 crate) + PTY (portable-pty)
   browser.rs                  Embedded webview management
   watcher.rs                  File change detection
@@ -121,7 +125,7 @@ src-tauri/src/                Backend (Rust)
 | Text measurement | Pretext (@chenglou/pretext) |
 | Terminal parsing | vt100 crate |
 | Terminal PTY | portable-pty |
-| AI models | Claude (Anthropic API), local models |
+| AI models | Claude API + Ollama + Codex + Gemini |
 | Extension runtime | wasmtime (WASM sandbox) |
 | UI font | Courier New |
 | Editor font | JetBrains Mono |
