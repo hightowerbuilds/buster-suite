@@ -59,7 +59,7 @@ const WelcomeCanvas: Component<WelcomeCanvasProps> = (props) => {
 
   const SUBTITLE = "canvas-rendered ide";
   const DRAG_RADIUS = 40;  // how close the drag must be to knock particles loose
-  const GRAVITY = 0.15;
+  const GRAVITY = 0.35;
 
   function sampleTextPixels(
     text: string, fontSize: number, offsetX: number, offsetY: number, step: number
