@@ -199,6 +199,7 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
           initialWidth={meta.width ?? 800}
           initialHeight={meta.height ?? 600}
           label={tab.name}
+          isActive={isActive}
         />
       );
     }

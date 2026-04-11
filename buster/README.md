@@ -87,7 +87,7 @@ Open Buster. The welcome screen shows an ASCII particle animation. Open the comm
 
 **Session Restore** — Auto-saves every 30 seconds. Hot-exit on window close. Restores workspace, tabs, cursor positions, and dirty buffers on relaunch.
 
-**Extensions** — WASM-sandboxed extensions with capability-based permissions. Extensions can render custom UI surfaces, connect via WebSocket or HTTP SSE gateways to external services.
+**Extensions** — WASM-sandboxed extensions with capability-based permissions. Extensions can render custom UI surfaces via display list commands, control embedded browser webviews, and connect via WebSocket or HTTP SSE gateways to external services. Three working Rust extensions exist: an embedded browser with devtools, a pixel art editor, and a prompt stacker.
 
 **Guided Tour** — An 11-step canvas-animated tutorial that teaches every feature including git and AI integration. Each step assembles as ASCII particle text.
 

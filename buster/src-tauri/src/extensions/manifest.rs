@@ -59,6 +59,9 @@ pub struct Capabilities {
     /// Request and paint to canvas surfaces
     #[serde(default)]
     pub render_surface: bool,
+    /// Control embedded browser webviews
+    #[serde(default)]
+    pub browser_control: bool,
 }
 
 impl Capabilities {
@@ -71,6 +74,7 @@ impl Capabilities {
         if self.terminal { out.push("terminal".into()); }
         if self.notifications { out.push("notifications".into()); }
         if self.render_surface { out.push("render_surface".into()); }
+        if self.browser_control { out.push("browser_control".into()); }
         out
     }
 }

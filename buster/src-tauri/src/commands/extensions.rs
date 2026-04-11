@@ -5,6 +5,7 @@ use tauri::{command, AppHandle, Emitter, Manager, State};
 
 use crate::extensions::gateway::GatewayConfig;
 use crate::extensions::{ExtensionInfo, ExtensionManager, save_enabled_state};
+use crate::browser::BrowserManager;
 
 /// List all discovered extensions.
 #[command]
@@ -22,6 +23,7 @@ pub async fn ext_load(
     app: AppHandle,
     state: State<'_, ExtensionManager>,
     _surfaces: State<'_, crate::extensions::surface::SurfaceManager>,
+    browser_mgr: State<'_, Arc<BrowserManager>>,
     extension_id: String,
 ) -> Result<ExtensionInfo, String> {
     state.scan().await?;
@@ -49,7 +51,8 @@ pub async fn ext_load(
         let _ = measure_app.emit("surface-measure-text", &req);
     });
 
-    let info = state.load(&extension_id, event_sink, surface_manager, measure_event_sink).await?;
+    let browser_manager: Arc<BrowserManager> = (*browser_mgr).clone();
+    let info = state.load(&extension_id, event_sink, surface_manager, measure_event_sink, app.clone(), browser_manager).await?;
 
     // Persist enabled state
     let enabled: Vec<String> = state.list().await.iter()
@@ -85,6 +88,7 @@ pub async fn ext_unload(
 pub async fn ext_restore(
     app: AppHandle,
     state: State<'_, ExtensionManager>,
+    browser_mgr: State<'_, Arc<BrowserManager>>,
 ) -> Result<Vec<String>, String> {
     let enabled_ids = crate::extensions::load_enabled_state();
     if enabled_ids.is_empty() {
@@ -117,7 +121,8 @@ pub async fn ext_restore(
             let _ = measure_app.emit("surface-measure-text", &req);
         });
 
-        match state.load(id, event_sink, surface_manager, measure_event_sink).await {
+        let browser_manager: Arc<BrowserManager> = (*browser_mgr).clone();
+        match state.load(id, event_sink, surface_manager, measure_event_sink, app.clone(), browser_manager).await {
             Ok(_) => restored.push(id.clone()),
             Err(e) => eprintln!("Failed to restore extension '{}': {}", id, e),
         }

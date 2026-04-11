@@ -1,7 +1,7 @@
 import { Component, onMount, onCleanup } from "solid-js";
 import { listen } from "@tauri-apps/api/event";
 import { paintDisplayList, clearImageCache, type DrawCommand } from "./DisplayListPainter";
-import { surfaceResizeNotify, surfaceGetLastPaint } from "../lib/ipc";
+import { surfaceResizeNotify, surfaceGetLastPaint, extCall, hideAllBrowserViews, showAllBrowserViews } from "../lib/ipc";
 
 interface SurfaceEvent {
   surface_id: number;
@@ -16,6 +16,7 @@ interface DisplayListSurfaceProps {
   initialWidth: number;
   initialHeight: number;
   label: string;
+  isActive?: boolean;
 }
 
 const DisplayListSurface: Component<DisplayListSurfaceProps> = (props) => {
@@ -23,6 +24,7 @@ const DisplayListSurface: Component<DisplayListSurfaceProps> = (props) => {
   let containerRef: HTMLDivElement | undefined;
   let currentWidth = props.initialWidth;
   let currentHeight = props.initialHeight;
+  let wasVisible = false;
 
   function paint(commands: DrawCommand[]) {
     if (!canvasRef) return;
@@ -30,6 +32,21 @@ const DisplayListSurface: Component<DisplayListSurfaceProps> = (props) => {
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
     paintDisplayList(ctx, commands, currentWidth, currentHeight, dpr);
+  }
+
+  function reportSizeToExtension() {
+    if (!containerRef) return;
+    const rect = containerRef.getBoundingClientRect();
+    extCall(
+      props.extensionId,
+      "on_resize",
+      JSON.stringify({
+        width: currentWidth,
+        height: currentHeight,
+        abs_x: Math.round(rect.left),
+        abs_y: Math.round(rect.top),
+      }),
+    ).catch(() => {});
   }
 
   onMount(() => {
@@ -79,8 +96,68 @@ const DisplayListSurface: Component<DisplayListSurfaceProps> = (props) => {
       }
     }).catch(() => {});
 
+    // ── Input event forwarding to extensions ──────────────────────
+    function canvasCoords(e: MouseEvent): { x: number; y: number } {
+      const rect = canvasRef!.getBoundingClientRect();
+      return {
+        x: Math.round(e.clientX - rect.left),
+        y: Math.round(e.clientY - rect.top),
+      };
+    }
+
+    const handleMouseDown = (e: MouseEvent) => {
+      const { x, y } = canvasCoords(e);
+      extCall(props.extensionId, "on_click", JSON.stringify({ x, y, button: e.button })).catch(() => {});
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.buttons === 0) return;
+      const { x, y } = canvasCoords(e);
+      extCall(props.extensionId, "on_mouse_move", JSON.stringify({ x, y, buttons: e.buttons })).catch(() => {});
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return;
+      const payload = JSON.stringify({
+        key: e.key,
+        code: e.code,
+        shift: e.shiftKey,
+        ctrl: e.ctrlKey || e.metaKey,
+        alt: e.altKey,
+      });
+      extCall(props.extensionId, "on_key", payload).catch(() => {});
+      if (e.key === "Enter" || e.key === "Backspace" || e.key === "Tab" || e.key.length === 1) {
+        e.preventDefault();
+      }
+    };
+
+    canvasRef.addEventListener("mousedown", handleMouseDown);
+    canvasRef.addEventListener("mousemove", handleMouseMove);
+    canvasRef.addEventListener("keydown", handleKeyDown);
+    canvasRef.tabIndex = 0;
+
+    // ── Visibility detection via IntersectionObserver ─────────────
+    // Detects when the surface is shown/hidden (tab switching, display:none, etc.)
+    const visibilityObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const isVisible = entry.isIntersecting;
+          if (isVisible && !wasVisible) {
+            wasVisible = true;
+            showAllBrowserViews().catch(() => {});
+            reportSizeToExtension();
+          } else if (!isVisible && wasVisible) {
+            wasVisible = false;
+            hideAllBrowserViews().catch(() => {});
+          }
+        }
+      },
+      { threshold: 0.01 },
+    );
+    visibilityObserver.observe(containerRef);
+
     // Watch container size changes
-    const observer = new ResizeObserver((entries) => {
+    const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0 && (Math.abs(width - currentWidth) > 1 || Math.abs(height - currentHeight) > 1)) {
@@ -94,15 +171,25 @@ const DisplayListSurface: Component<DisplayListSurfaceProps> = (props) => {
             canvasRef.style.height = `${currentHeight}px`;
           }
           surfaceResizeNotify(props.surfaceId, currentWidth, currentHeight).catch(() => {});
+          reportSizeToExtension();
         }
       }
     });
-    observer.observe(containerRef);
+    resizeObserver.observe(containerRef);
+
+    // Report initial size
+    reportSizeToExtension();
 
     onCleanup(() => {
       unlistenPromise.then((unlisten) => unlisten());
-      observer.disconnect();
+      visibilityObserver.disconnect();
+      resizeObserver.disconnect();
       clearImageCache();
+      if (canvasRef) {
+        canvasRef.removeEventListener("mousedown", handleMouseDown);
+        canvasRef.removeEventListener("mousemove", handleMouseMove);
+        canvasRef.removeEventListener("keydown", handleKeyDown);
+      }
     });
   });
 

@@ -31,7 +31,7 @@ pub fn scan_local_ports() -> Vec<LocalPort> {
 #[command]
 pub fn create_browser_view(
     app: AppHandle,
-    state: State<'_, BrowserManager>,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
     url: String,
     x: f64,
     y: f64,
@@ -44,7 +44,7 @@ pub fn create_browser_view(
 #[command]
 pub fn navigate_browser_view(
     app: AppHandle,
-    state: State<'_, BrowserManager>,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
     browser_id: String,
     url: String,
 ) -> Result<(), String> {
@@ -54,7 +54,7 @@ pub fn navigate_browser_view(
 #[command]
 pub fn resize_browser_view(
     app: AppHandle,
-    state: State<'_, BrowserManager>,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
     browser_id: String,
     x: f64,
     y: f64,
@@ -67,7 +67,7 @@ pub fn resize_browser_view(
 #[command]
 pub fn show_browser_view(
     app: AppHandle,
-    state: State<'_, BrowserManager>,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
     browser_id: String,
 ) -> Result<(), String> {
     state.show(&app, &browser_id)
@@ -76,7 +76,7 @@ pub fn show_browser_view(
 #[command]
 pub fn hide_browser_view(
     app: AppHandle,
-    state: State<'_, BrowserManager>,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
     browser_id: String,
 ) -> Result<(), String> {
     state.hide(&app, &browser_id)
@@ -85,8 +85,24 @@ pub fn hide_browser_view(
 #[command]
 pub fn close_browser_view(
     app: AppHandle,
-    state: State<'_, BrowserManager>,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
     browser_id: String,
 ) -> Result<(), String> {
     state.close(&app, &browser_id)
+}
+
+#[command]
+pub fn hide_all_browser_views(
+    app: AppHandle,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
+) -> Result<(), String> {
+    state.hide_all(&app)
+}
+
+#[command]
+pub fn show_all_browser_views(
+    app: AppHandle,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
+) -> Result<(), String> {
+    state.show_all(&app)
 }

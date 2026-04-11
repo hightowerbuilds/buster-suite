@@ -527,6 +527,12 @@ export const extGatewayDisconnect = (connectionId: number) =>
 export const extCall = (extensionId: string, method: string, params?: string) =>
   invoke<string>("ext_call", { extensionId, method, params });
 
+export const hideAllBrowserViews = () =>
+  invoke<void>("hide_all_browser_views");
+
+export const showAllBrowserViews = () =>
+  invoke<void>("show_all_browser_views");
+
 export const extInstall = (sourcePath: string) =>
   invoke<ExtensionInfo>("ext_install", { sourcePath });
 

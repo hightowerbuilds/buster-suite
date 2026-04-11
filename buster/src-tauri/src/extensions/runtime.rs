@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -9,6 +10,8 @@ use wasmtime_wasi::pipe::MemoryOutputPipe;
 use super::gateway::{GatewayEvent, GatewayManager};
 use super::manifest::ExtensionManifest;
 use super::surface::{SurfaceManager, MeasureTextRequest};
+
+use crate::browser::BrowserManager;
 
 // Buster sandbox integration — allowlist-based command execution
 use buster_sandbox::{SandboxConfig, ExecutionRequest, ExitStatus, ResourceLimits, execute as sandbox_execute};
@@ -61,6 +64,14 @@ pub struct ExtensionState {
     pub event_sink: Arc<dyn Fn(GatewayEvent) + Send + Sync>,
     pub surface_manager: Arc<SurfaceManager>,
     pub measure_event_sink: Arc<dyn Fn(MeasureTextRequest) + Send + Sync>,
+    /// Tauri app handle — for browser webview control
+    pub app_handle: tauri::AppHandle,
+    /// Browser manager — shared with the host for webview lifecycle
+    pub browser_manager: Arc<BrowserManager>,
+    /// Maps extension-facing i32 browser IDs to BrowserManager string IDs
+    pub browser_id_map: HashMap<i32, String>,
+    /// Next browser ID counter for this extension
+    pub next_browser_id: i32,
     /// WASI context — present only for runtime="wasi" extensions
     pub wasi: Option<WasiP1Ctx>,
     /// Captured stdout pipe — for WASI modules that output display list JSON
@@ -78,6 +89,18 @@ impl ExtensionInstance {
     /// Whether this extension uses the WASI runtime.
     pub fn is_wasi(&self) -> bool {
         self.manifest.extension.runtime == "wasi"
+    }
+
+    /// Close all browser views owned by this extension.
+    pub fn close_all_browsers(&mut self) {
+        let state = self.store.data();
+        let browser_ids: Vec<String> = state.browser_id_map.values().cloned().collect();
+        let app_handle = state.app_handle.clone();
+        let browser_manager = state.browser_manager.clone();
+        for bid in &browser_ids {
+            let _ = browser_manager.close(&app_handle, bid);
+        }
+        self.store.data_mut().browser_id_map.clear();
     }
 
     /// Call the extension's activate() export (bare modules),
@@ -224,6 +247,8 @@ impl WasmRuntime {
         event_sink: Arc<dyn Fn(GatewayEvent) + Send + Sync>,
         surface_manager: Arc<SurfaceManager>,
         measure_event_sink: Arc<dyn Fn(MeasureTextRequest) + Send + Sync>,
+        app_handle: tauri::AppHandle,
+        browser_manager: Arc<BrowserManager>,
     ) -> Result<ExtensionInstance, String> {
         // Parse manifest
         let manifest_path = extension_dir.join("extension.toml");
@@ -261,6 +286,10 @@ impl WasmRuntime {
             event_sink,
             surface_manager,
             measure_event_sink,
+            app_handle,
+            browser_manager,
+            browser_id_map: HashMap::new(),
+            next_browser_id: 1,
             wasi: wasi_ctx,
             stdout_pipe,
         };
@@ -667,6 +696,167 @@ fn link_host_functions(linker: &mut Linker<ExtensionState>, _caps: &super::manif
                 0
             }
             Err(_) => -1,
+        }
+    })?;
+
+    // ── Browser Webview Control ────────────────────────────────────
+
+    linker.func_wrap("buster", "host_create_browser", |mut caller: Caller<'_, ExtensionState>, url_ptr: i32, url_len: i32, x: f64, y: f64, width: f64, height: f64| -> i32 {
+        if !caller.data().manifest.capabilities.browser_control {
+            return -1;
+        }
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(m) => m,
+            None => return -1,
+        };
+        let url = match read_wasm_str(&memory, &caller, url_ptr, url_len) {
+            Some(s) => s,
+            None => return -1,
+        };
+        let app_handle = caller.data().app_handle.clone();
+        let bm = caller.data().browser_manager.clone();
+        match bm.create(&app_handle, &url, x, y, width, height) {
+            Ok(string_id) => {
+                let state = caller.data_mut();
+                let ext_id = state.next_browser_id;
+                state.next_browser_id += 1;
+                state.browser_id_map.insert(ext_id, string_id);
+                ext_id
+            }
+            Err(e) => {
+                let ext_id = caller.data().manifest.extension.id.clone();
+                eprintln!("[ext:{}] host_create_browser failed: {}", ext_id, e);
+                -1
+            }
+        }
+    })?;
+
+    linker.func_wrap("buster", "host_navigate_browser", |mut caller: Caller<'_, ExtensionState>, browser_id: i32, url_ptr: i32, url_len: i32| -> i32 {
+        if !caller.data().manifest.capabilities.browser_control {
+            return -1;
+        }
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(m) => m,
+            None => return -1,
+        };
+        let url = match read_wasm_str(&memory, &caller, url_ptr, url_len) {
+            Some(s) => s,
+            None => return -1,
+        };
+        let string_id = match caller.data().browser_id_map.get(&browser_id) {
+            Some(s) => s.clone(),
+            None => return -1,
+        };
+        let app_handle = caller.data().app_handle.clone();
+        let bm = caller.data().browser_manager.clone();
+        match bm.navigate(&app_handle, &string_id, &url) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    })?;
+
+    linker.func_wrap("buster", "host_resize_browser", |caller: Caller<'_, ExtensionState>, browser_id: i32, x: f64, y: f64, width: f64, height: f64| -> i32 {
+        if !caller.data().manifest.capabilities.browser_control {
+            return -1;
+        }
+        let string_id = match caller.data().browser_id_map.get(&browser_id) {
+            Some(s) => s.clone(),
+            None => return -1,
+        };
+        let app_handle = caller.data().app_handle.clone();
+        let bm = caller.data().browser_manager.clone();
+        match bm.resize(&app_handle, &string_id, x, y, width, height) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    })?;
+
+    linker.func_wrap("buster", "host_show_browser", |caller: Caller<'_, ExtensionState>, browser_id: i32| -> i32 {
+        if !caller.data().manifest.capabilities.browser_control {
+            return -1;
+        }
+        let string_id = match caller.data().browser_id_map.get(&browser_id) {
+            Some(s) => s.clone(),
+            None => return -1,
+        };
+        let app_handle = caller.data().app_handle.clone();
+        let bm = caller.data().browser_manager.clone();
+        match bm.show(&app_handle, &string_id) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    })?;
+
+    linker.func_wrap("buster", "host_hide_browser", |caller: Caller<'_, ExtensionState>, browser_id: i32| -> i32 {
+        if !caller.data().manifest.capabilities.browser_control {
+            return -1;
+        }
+        let string_id = match caller.data().browser_id_map.get(&browser_id) {
+            Some(s) => s.clone(),
+            None => return -1,
+        };
+        let app_handle = caller.data().app_handle.clone();
+        let bm = caller.data().browser_manager.clone();
+        match bm.hide(&app_handle, &string_id) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    })?;
+
+    linker.func_wrap("buster", "host_close_browser", |mut caller: Caller<'_, ExtensionState>, browser_id: i32| -> i32 {
+        if !caller.data().manifest.capabilities.browser_control {
+            return -1;
+        }
+        let string_id = match caller.data().browser_id_map.get(&browser_id) {
+            Some(s) => s.clone(),
+            None => return -1,
+        };
+        let app_handle = caller.data().app_handle.clone();
+        let bm = caller.data().browser_manager.clone();
+        let result = match bm.close(&app_handle, &string_id) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        };
+        caller.data_mut().browser_id_map.remove(&browser_id);
+        result
+    })?;
+
+    linker.func_wrap("buster", "host_eval_browser", |mut caller: Caller<'_, ExtensionState>, browser_id: i32, js_ptr: i32, js_len: i32| -> i32 {
+        if !caller.data().manifest.capabilities.browser_control {
+            return -1;
+        }
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(m) => m,
+            None => return -1,
+        };
+        let js_code = match read_wasm_str(&memory, &caller, js_ptr, js_len) {
+            Some(s) => s,
+            None => return -1,
+        };
+        let string_id = match caller.data().browser_id_map.get(&browser_id) {
+            Some(s) => s.clone(),
+            None => return -1,
+        };
+        let app_handle = caller.data().app_handle.clone();
+        // Get the webview and evaluate JS
+        use tauri::Manager;
+        let webview = match app_handle.get_webview(&string_id) {
+            Some(wv) => wv,
+            None => return -1,
+        };
+        // evaluate_script is fire-and-forget in Tauri v2 — use eval() which is synchronous
+        match webview.eval(&js_code) {
+            Ok(()) => {
+                // eval() doesn't return a value — for result capture, extensions
+                // should use a callback pattern (e.g., store result in window.__buster_devtools
+                // and poll with a second eval)
+                0
+            }
+            Err(e) => {
+                let ext_id = caller.data().manifest.extension.id.clone();
+                eprintln!("[ext:{}] host_eval_browser failed: {}", ext_id, e);
+                -1
+            }
         }
     })?;
 

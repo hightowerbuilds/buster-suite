@@ -172,4 +172,27 @@ impl BrowserManager {
             .remove(browser_id);
         Ok(())
     }
+
+    /// Hide all browser views (move offscreen).
+    pub fn hide_all(&self, app: &AppHandle) -> Result<(), String> {
+        let instances = self.instances.lock().map_err(|e| e.to_string())?;
+        for (id, _) in instances.iter() {
+            if let Some(webview) = app.get_webview(id) {
+                let _ = webview.set_position(tauri::LogicalPosition::new(-10000.0_f64, -10000.0_f64));
+            }
+        }
+        Ok(())
+    }
+
+    /// Show all browser views (restore to saved positions).
+    pub fn show_all(&self, app: &AppHandle) -> Result<(), String> {
+        let instances = self.instances.lock().map_err(|e| e.to_string())?;
+        for (id, inst) in instances.iter() {
+            if let Some(webview) = app.get_webview(id) {
+                let _ = webview.set_position(tauri::LogicalPosition::new(inst.x, inst.y));
+                let _ = webview.set_size(tauri::LogicalSize::new(inst.width, inst.height));
+            }
+        }
+        Ok(())
+    }
 }

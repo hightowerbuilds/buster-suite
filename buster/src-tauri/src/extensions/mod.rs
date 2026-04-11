@@ -152,6 +152,8 @@ impl ExtensionManager {
         event_sink: Arc<dyn Fn(GatewayEvent) + Send + Sync>,
         surface_manager: Arc<surface::SurfaceManager>,
         measure_event_sink: Arc<dyn Fn(surface::MeasureTextRequest) + Send + Sync>,
+        app_handle: tauri::AppHandle,
+        browser_manager: Arc<crate::browser::BrowserManager>,
     ) -> Result<ExtensionInfo, String> {
         // Check if already loaded
         if self.instances.lock().await.contains_key(extension_id) {
@@ -188,6 +190,8 @@ impl ExtensionManager {
             event_sink,
             surface_manager,
             measure_event_sink,
+            app_handle,
+            browser_manager,
         )?;
 
         // Activate
@@ -213,6 +217,8 @@ impl ExtensionManager {
         // Deactivate and remove
         let mut instances = self.instances.lock().await;
         if let Some(mut instance) = instances.remove(extension_id) {
+            // Close all browser views owned by this extension before deactivating
+            instance.close_all_browsers();
             instance.deactivate()?;
         }
         Ok(())

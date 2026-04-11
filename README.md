@@ -14,7 +14,7 @@ Buster is a desktop code editor that renders everything — the editor, terminal
 - **Git & GitHub** with 30 built-in commands, a visual commit graph with colored lanes, blame overlay, diff gutters, staging, conflict resolution, remote management, and GitHub PR/issue browsing via gh CLI
 - **LSP support** for Rust, TypeScript/JavaScript, Python, and Go — autocomplete, hover, diagnostics, go-to-definition, rename refactoring, find all references, and a diagnostics panel
 - **DAP-based debugger** with breakpoints, stepping, stack frames, and variable inspection
-- **WASM-sandboxed extensions** with capability-based permissions and custom UI surfaces
+- **WASM-sandboxed extensions** with capability-based permissions, custom canvas UI surfaces, embedded browser webviews, and gateway connections
 - **Quick Open** (Cmd+P) with fuzzy search and prefix modes for commands, line numbers, symbols, and search
 - **Multiple layout modes** — Tabs, Columns, Grid, Trio, Quint, Rerack, and HQ (3x2 grid)
 - **Session restore** that auto-saves every 30 seconds and reopens your workspace exactly as you left it
@@ -127,7 +127,7 @@ The full roadmap for production readiness is documented in [`supporting-projects
 |---|---|---|
 | buster-lsp-manager | Built | Incremental LSP sync, crash recovery, server auto-install |
 | buster-syntax | Built | Incremental Tree-sitter parsing (reparse only changed ranges) |
-| buster-ext-template | Built | Extension SDK, CLI tooling, and starter kit |
+| buster-ext-template | Built | Extension SDK and starter kit. [Ext-Rust](https://github.com/hightowerbuilds/ext-rust) provides a working Rust guest SDK with 3 reference extensions. |
 
 ### Tier C — Feature Completion (needed for competitive positioning)
 

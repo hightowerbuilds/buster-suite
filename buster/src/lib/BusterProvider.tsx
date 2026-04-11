@@ -24,6 +24,7 @@ import {
   setWorkspaceRootIpc, largeFileOpen, largeFileReadLines,
   largeFileClose, loadSettings as loadSettingsIpc, saveSettings as saveSettingsIpc,
   loadApiKey as loadApiKeyIpc, storeApiKey as storeApiKeyIpc,
+  extUnload,
 } from "./ipc";
 import { CATPPUCCIN, LIGHT_THEME, generatePalette, importVSCodeTheme, applyPaletteToCss, clearCssOverrides, type ThemePalette } from "./theme";
 import type { AppSettings } from "./ipc";
@@ -461,6 +462,16 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     if (!tab) return;
 
     if (tab.type === "explorer") setStore("sidebarVisible", true);
+
+    // Surface tabs: unload the extension so it can clean up webviews, surfaces, etc.
+    if (tab.type === "surface") {
+      try {
+        const meta = JSON.parse(tab.path || "{}");
+        if (meta.extension_id) {
+          extUnload(meta.extension_id).catch(() => {});
+        }
+      } catch {}
+    }
 
     if (tab.type === "file") {
       setStore("fileTexts", produce(ft => { delete ft[tabId]; }));

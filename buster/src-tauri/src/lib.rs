@@ -38,7 +38,7 @@ pub fn run() {
         .manage(extensions::ExtensionManager::new())
         .manage(extensions::surface::SurfaceManager::new())
         .manage(watcher::FileWatcher::new())
-        .manage(BrowserManager::new())
+        .manage(Arc::new(BrowserManager::new()))
         .manage(filebuffer::FileBufferManager::new())
         .manage(ai::audit::AuditLogger::new())
         .manage(DebugManager::new())
@@ -318,6 +318,8 @@ pub fn run() {
             commands::browser::show_browser_view,
             commands::browser::hide_browser_view,
             commands::browser::close_browser_view,
+            commands::browser::hide_all_browser_views,
+            commands::browser::show_all_browser_views,
             commands::browser::scan_local_ports,
             // GitHub (gh CLI)
             commands::github::gh_auth_status,
