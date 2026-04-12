@@ -2,11 +2,12 @@ use serde_json::{json, Value};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::collections::HashMap;
 use tokio::sync::oneshot;
 
 use super::{StackFrame, Variable};
+use super::dap_integration::DebugEvent;
 
 /// DAP client — communicates with a Debug Adapter via the Debug Adapter Protocol.
 /// Uses the same content-length framing as LSP.
@@ -18,8 +19,8 @@ pub struct DapClient {
 }
 
 impl DapClient {
-    /// Start a debug adapter process.
-    pub async fn start(cmd: &str, args: &[&str]) -> Result<Self, String> {
+    /// Start a debug adapter process. Events are forwarded via the sender.
+    pub async fn start(cmd: &str, args: &[&str], event_sender: mpsc::Sender<DebugEvent>) -> Result<Self, String> {
         let mut child = Command::new(cmd)
             .args(args)
             .stdin(Stdio::piped())
@@ -65,8 +66,10 @@ impl DapClient {
 
                 let Ok(msg) = serde_json::from_slice::<Value>(&body) else { continue };
 
+                let msg_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
                 // Handle response
-                if msg.get("type").and_then(|v| v.as_str()) == Some("response") {
+                if msg_type == "response" {
                     if let Some(seq) = msg.get("request_seq").and_then(|v| v.as_i64()) {
                         let mut p = pending.lock().unwrap_or_else(|e| e.into_inner());
                         if let Some(tx) = p.remove(&seq) {
@@ -74,8 +77,48 @@ impl DapClient {
                         }
                     }
                 }
-                // Events (stopped, terminated, etc.) are logged but not yet forwarded
-                // TODO: emit events to frontend via Tauri event system
+                // Forward DAP events to the EventChannel
+                else if msg_type == "event" {
+                    let event_name = msg.get("event").and_then(|v| v.as_str()).unwrap_or("");
+                    let body = msg.get("body").unwrap_or(&Value::Null);
+                    let debug_event = match event_name {
+                        "stopped" => Some(DebugEvent::Stopped {
+                            reason: body.get("reason").and_then(|v| v.as_str()).unwrap_or("").into(),
+                            thread_id: body.get("threadId").and_then(|v| v.as_i64()).unwrap_or(1),
+                            description: body.get("description").and_then(|v| v.as_str()).map(String::from),
+                        }),
+                        "continued" => Some(DebugEvent::Continued {
+                            thread_id: body.get("allThreadsContinued")
+                                .and_then(|_| body.get("threadId"))
+                                .and_then(|v| v.as_i64())
+                                .unwrap_or(1),
+                        }),
+                        "terminated" => Some(DebugEvent::Terminated),
+                        "exited" => Some(DebugEvent::Exited {
+                            exit_code: body.get("exitCode").and_then(|v| v.as_i64()).unwrap_or(-1),
+                        }),
+                        "output" => Some(DebugEvent::Output {
+                            category: body.get("category").and_then(|v| v.as_str()).unwrap_or("console").into(),
+                            output: body.get("output").and_then(|v| v.as_str()).unwrap_or("").into(),
+                        }),
+                        "thread" => {
+                            let tid = body.get("threadId").and_then(|v| v.as_i64()).unwrap_or(0);
+                            let reason = body.get("reason").and_then(|v| v.as_str()).unwrap_or("");
+                            match reason {
+                                "started" => Some(DebugEvent::ThreadStarted {
+                                    thread_id: tid,
+                                    name: format!("Thread {}", tid),
+                                }),
+                                "exited" => Some(DebugEvent::ThreadExited { thread_id: tid }),
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    };
+                    if let Some(evt) = debug_event {
+                        let _ = event_sender.send(evt);
+                    }
+                }
             }
         });
 

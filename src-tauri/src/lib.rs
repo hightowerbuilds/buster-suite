@@ -60,14 +60,6 @@ pub fn run() {
                 true,
                 None::<&str>,
             )?;
-            let view_docs = MenuItem::with_id(
-                app,
-                "view_docs",
-                "Docs (Ctrl+` then Q)",
-                true,
-                None::<&str>,
-            )?;
-
             let file_menu = Submenu::with_items(app, "File", true, &[
                 &change_dir,
                 &close_dir,
@@ -94,7 +86,7 @@ pub fn run() {
                 app,
                 "View",
                 true,
-                &[&view_extensions, &view_debug, &view_settings, &view_docs],
+                &[&view_extensions, &view_debug, &view_settings],
             )?;
 
             let menu = Menu::with_items(app, &[&file_menu, &edit_menu, &view_menu])?;
@@ -135,9 +127,6 @@ pub fn run() {
                     }
                     "view_settings" => {
                         let _ = app_handle.emit("menu-open-settings", ());
-                    }
-                    "view_docs" => {
-                        let _ = app_handle.emit("menu-open-docs", ());
                     }
                     _ => {}
                 }
@@ -198,6 +187,19 @@ pub fn run() {
                         );
                     }
                 });
+            }
+
+            // Spawn debug event forwarding thread (DAP → frontend)
+            {
+                let debug_mgr = app.state::<debugger::DebugManager>();
+                if let Some(rx) = debug_mgr.take_event_rx() {
+                    let debug_handle = app.handle().clone();
+                    std::thread::spawn(move || {
+                        while let Ok(event) = rx.recv() {
+                            let _ = debug_handle.emit("debug-event", &event);
+                        }
+                    });
+                }
             }
 
             // Wire surface event sink

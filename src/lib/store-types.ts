@@ -4,7 +4,8 @@
  */
 
 import type { Tab } from "./tab-types";
-import type { SearchMatch, DiffHunk, AppSettings } from "./ipc";
+import type { SearchMatch, DiffHunk, AppSettings, DebugStackFrame, DebugVariable } from "./ipc";
+import type { DebugSessionState } from "./debug-events";
 import type { ThemePalette } from "./theme";
 import type { PanelCount } from "./panel-count";
 
@@ -71,6 +72,14 @@ export interface BusterStoreState {
   // ── Workspace ──────────────────────────────────────────
   workspaceRoot: string | null;
   activeFilePath: string | null;
+
+  // ── Debug ──────────────────────────────────────────────
+  debugModeVisible: boolean;
+  debugSessionState: DebugSessionState;
+  debugStackFrames: DebugStackFrame[];
+  debugVariables: DebugVariable[];
+  debugOutput: string[];
+  debugSelectedFrameId: number | null;
 
   // ── Misc ───────────────────────────────────────────────
   recentFiles: RecentFile[];

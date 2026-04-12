@@ -78,6 +78,11 @@ impl DebugManager {
         }
     }
 
+    /// Take ownership of the event receiver for a dedicated forwarding thread.
+    pub fn take_event_rx(&self) -> Option<std::sync::mpsc::Receiver<dap_integration::DebugEvent>> {
+        self.events.take_receiver()
+    }
+
     /// Toggle a breakpoint at a file:line. Returns true if breakpoint was added, false if removed.
     pub fn toggle_breakpoint(&self, file_path: &str, line: u32) -> bool {
         let mut bps = self.breakpoints.write().unwrap_or_else(|e| e.into_inner());
@@ -121,7 +126,8 @@ impl DebugManager {
         // Stop existing session
         self.stop().await;
 
-        let client = Arc::new(DapClient::start(adapter_cmd, adapter_args).await?);
+        let event_sender = self.events.sender();
+        let client = Arc::new(DapClient::start(adapter_cmd, adapter_args, event_sender).await?);
 
         // Initialize
         client.initialize().await?;

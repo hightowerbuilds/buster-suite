@@ -45,13 +45,13 @@ pub enum DebugEvent {
 /// no unsafe Send/Sync impls — fixing the UB in the current code).
 pub struct EventChannel {
     sender: mpsc::Sender<DebugEvent>,
-    receiver: Mutex<mpsc::Receiver<DebugEvent>>,
+    receiver: Mutex<Option<mpsc::Receiver<DebugEvent>>>,
 }
 
 impl EventChannel {
     pub fn new() -> Self {
         let (sender, receiver) = mpsc::channel();
-        Self { sender, receiver: Mutex::new(receiver) }
+        Self { sender, receiver: Mutex::new(Some(receiver)) }
     }
 
     /// Get a clone of the sender for the reader thread.
@@ -59,17 +59,25 @@ impl EventChannel {
         self.sender.clone()
     }
 
+    /// Take ownership of the receiver (for a dedicated forwarding thread).
+    /// After this call, `try_recv()` and `drain()` will return empty.
+    pub fn take_receiver(&self) -> Option<mpsc::Receiver<DebugEvent>> {
+        self.receiver.lock().ok()?.take()
+    }
+
     /// Try to receive a pending event (non-blocking).
     pub fn try_recv(&self) -> Option<DebugEvent> {
-        self.receiver.lock().ok()?.try_recv().ok()
+        self.receiver.lock().ok()?.as_ref()?.try_recv().ok()
     }
 
     /// Drain all pending events.
     pub fn drain(&self) -> Vec<DebugEvent> {
         let mut events = Vec::new();
-        if let Ok(receiver) = self.receiver.lock() {
-            while let Ok(event) = receiver.try_recv() {
-                events.push(event);
+        if let Ok(guard) = self.receiver.lock() {
+            if let Some(receiver) = guard.as_ref() {
+                while let Ok(event) = receiver.try_recv() {
+                    events.push(event);
+                }
             }
         }
         events

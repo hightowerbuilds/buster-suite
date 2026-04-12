@@ -13,6 +13,7 @@ import CanvasToasts from "./ui/CanvasToasts";
 import DirtyCloseDialog from "./ui/DirtyCloseDialog";
 import ExternalChangeDialog from "./ui/ExternalChangeDialog";
 import BranchPicker from "./ui/BranchPicker";
+import DebugMode from "./ui/DebugMode";
 import { createAppCommands, registerAppCommands, unregisterAppCommands, buildHotkeyDefinitions, type CommandDeps } from "./lib/app-commands";
 import { createHotkeys } from "@tanstack/solid-hotkeys";
 import { useBuster } from "./lib/buster-context";
@@ -370,6 +371,9 @@ const App: Component = () => {
           onClose={() => setStore("branchPickerVisible", false)}
           onBranchChanged={() => actions.refreshGitBranch(store.workspaceRoot!)}
         />
+      </Show>
+      <Show when={store.debugModeVisible}>
+        <DebugMode onMinimize={() => setStore("debugModeVisible", false)} />
       </Show>
     </div>
   );

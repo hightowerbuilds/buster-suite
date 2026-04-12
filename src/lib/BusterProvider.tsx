@@ -15,6 +15,7 @@ import type { DirtyCloseResult } from "../ui/DirtyCloseDialog";
 import type { ExternalChangeResult } from "../ui/ExternalChangeDialog";
 import type { SessionSnapshot } from "./session";
 import { showToast } from "../ui/CanvasToasts";
+import { setupDebugEventListener } from "./debug-events";
 
 import {
   readFile, writeFile, watchFile, unwatchFile, addRecentFolder,
@@ -97,6 +98,13 @@ const INITIAL_STATE: BusterStoreState = {
   palette: CATPPUCCIN,
   workspaceRoot: null,
   activeFilePath: null,
+
+  debugModeVisible: false,
+  debugSessionState: "idle",
+  debugStackFrames: [],
+  debugVariables: [],
+  debugOutput: [],
+  debugSelectedFrameId: null,
 
   recentFiles: JSON.parse(localStorage.getItem(RECENT_FILES_KEY) || "[]"),
   tabTrapping: true,
@@ -730,6 +738,34 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     openSettings: createSettingsTab,
   })
     .then(handles => menuListeners.push(...handles));
+
+  // Wire debug event listener (DAP events from Rust backend)
+  setupDebugEventListener({
+    onStateChange: (state) => {
+      setStore("debugSessionState", state);
+      if (state === "running" || state === "paused") {
+        setStore("debugModeVisible", true);
+      }
+    },
+    onStackFrames: (frames) => {
+      setStore("debugStackFrames", frames);
+      if (frames.length > 0 && store.debugSelectedFrameId === null) {
+        setStore("debugSelectedFrameId", frames[0]!.id);
+      }
+    },
+    onVariables: (vars) => setStore("debugVariables", vars),
+    onOutput: (_category, text) => {
+      setStore("debugOutput", produce(arr => {
+        arr.push(text);
+        while (arr.length > 1000) arr.shift();
+      }));
+    },
+    onSessionEnd: () => {
+      setStore("debugStackFrames", []);
+      setStore("debugVariables", []);
+      setStore("debugSelectedFrameId", null);
+    },
+  }).then(u => menuListeners.push(u));
 
   // Session restore — restore layout preferences only, not workspace or files.
   // Users must explicitly open a folder to start each session.
