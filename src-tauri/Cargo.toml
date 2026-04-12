@@ -58,9 +58,6 @@ tree-sitter-php = "0.23"
 # Runtime grammar loading
 libloading = "0.8"
 
-# SSH remote development
-ssh2 = "0.9"
-
 # File explorer
 ignore = "0.4"
 
@@ -99,7 +96,6 @@ buster-lsp-manager = { path = "crates/lsp-manager" }
 buster-syntax = { path = "crates/syntax" }
 buster-dap = { path = "crates/dap" }
 buster-terminal-pro = { path = "crates/terminal-pro" }
-buster-remote = { path = "crates/remote" }
 
 [dev-dependencies]
 tempfile = "3"

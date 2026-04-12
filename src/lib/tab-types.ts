@@ -7,7 +7,6 @@ export type TabType =
   | "settings"
   | "git"
   | "extensions"
-  | "manual"
   | "debug"
   | "explorer"
   | "problems"

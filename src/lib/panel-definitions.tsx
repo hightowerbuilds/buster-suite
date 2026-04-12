@@ -13,7 +13,6 @@ import CanvasTerminal from "../ui/CanvasTerminal";
 import SettingsPanel from "../ui/SettingsPanel";
 import GitPage from "../ui/GitPage";
 import ExtensionsPage from "../ui/ExtensionsPage";
-import ManualTab from "../ui/ManualTab";
 import DebugPanel from "../ui/DebugPanel";
 import ProblemsPanel from "../ui/ProblemsPanel";
 import SearchResultsPanel from "../ui/SearchResultsPanel";
@@ -92,12 +91,6 @@ registerPanel("problems", {
       }}
     />
   ),
-});
-
-// ── Manual ───────────────────────────────────────────────────────────
-
-registerPanel("manual", {
-  render: () => <ManualTab />,
 });
 
 // ── Debug ────────────────────────────────────────────────────────────

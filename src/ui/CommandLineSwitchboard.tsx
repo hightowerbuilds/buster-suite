@@ -9,7 +9,6 @@ interface CommandLineSwitchboardProps {
   onOpenExtensions: () => void;
   onOpenDebug: () => void;
   onOpenSettings: () => void;
-  onOpenDocs: () => void;
 }
 
 type CommandOption =
@@ -38,13 +37,6 @@ type CommandOption =
       description: string;
       action: "settings";
     }
-  | {
-      key: string;
-      label: string;
-      description: string;
-      action: "docs";
-    };
-
 const COMMAND_OPTIONS: CommandOption[] = [
   ...PRIMARY_LAYOUT_OPTIONS.map((layout) => ({
     key: layout.label.slice(1),
@@ -70,12 +62,6 @@ const COMMAND_OPTIONS: CommandOption[] = [
     label: "set",
     description: "Settings",
     action: "settings" as const,
-  },
-  {
-    key: "q",
-    label: "docs",
-    description: "Docs",
-    action: "docs" as const,
   },
 ];
 
@@ -120,7 +106,7 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
   }
 
   function handleInput(e: InputEvent & { currentTarget: HTMLInputElement; target: Element }) {
-    const key = e.currentTarget.value.toLowerCase().replace(/[^1-6edsq]/g, "").slice(-1);
+    const key = e.currentTarget.value.toLowerCase().replace(/[^1-6eds]/g, "").slice(-1);
     e.currentTarget.value = key;
     if (!key) return;
 
@@ -131,7 +117,6 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
     else if (option.action === "extensions") props.onOpenExtensions();
     else if (option.action === "debug") props.onOpenDebug();
     else if (option.action === "settings") props.onOpenSettings();
-    else props.onOpenDocs();
   }
 
   return (
@@ -153,12 +138,12 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
               autocapitalize="off"
               spellcheck={false}
               aria-label="Command line input"
-              placeholder="1-6 / E / D / S / Q"
+              placeholder="1-6 / E / D / S"
               onKeyDown={handleKeyDown}
               onInput={handleInput}
             />
           </div>
-          <div class="command-line-caption">Press 1-6 for panel layouts, E for Extensions, D for Debug, S for Settings, or Q for Docs.</div>
+          <div class="command-line-caption">Press 1-6 for panel layouts, E for Extensions, D for Debug, or S for Settings.</div>
           <div class="command-line-options" role="list">
             <For each={COMMAND_OPTIONS}>
               {(option) => (

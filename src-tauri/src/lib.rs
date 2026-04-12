@@ -4,8 +4,6 @@ mod syntax;
 mod lsp;
 mod extensions;
 mod debugger;
-mod remote;
-mod collab;
 pub mod workspace;
 pub mod watcher;
 mod browser;
@@ -15,8 +13,6 @@ use terminal::TerminalManager;
 use syntax::SyntaxService;
 use lsp::LspManager;
 use debugger::DebugManager;
-use remote::RemoteManager;
-use collab::CollabManager;
 use browser::BrowserManager;
 use tauri::menu::{Menu, Submenu, MenuItem, PredefinedMenuItem};
 use tauri::{Emitter, Manager};
@@ -39,8 +35,6 @@ pub fn run() {
         .manage(Arc::new(BrowserManager::new()))
         .manage(filebuffer::FileBufferManager::new())
         .manage(DebugManager::new())
-        .manage(RemoteManager::new())
-        .manage(CollabManager::new())
         .setup(|app| {
             // Build the native menu bar
             let change_dir = MenuItem::with_id(app, "change_directory", "Change Directory", true, None::<&str>)?;
@@ -260,24 +254,6 @@ pub fn run() {
             commands::debugger::debug_stop,
             commands::debugger::debug_stack_trace,
             commands::debugger::debug_variables,
-            // Remote SSH
-            commands::remote::remote_connect,
-            commands::remote::remote_disconnect,
-            commands::remote::remote_status,
-            commands::remote::remote_list_directory,
-            commands::remote::remote_read_file,
-            commands::remote::remote_write_file,
-            commands::remote::remote_exec,
-            // Collaborative editing
-            commands::collab::collab_start_session,
-            commands::collab::collab_end_session,
-            commands::collab::collab_insert,
-            commands::collab::collab_delete,
-            commands::collab::collab_apply_remote,
-            commands::collab::collab_get_text,
-            commands::collab::collab_get_peers,
-            commands::collab::collab_update_cursor,
-            commands::collab::collab_active_sessions,
             // Search
             commands::search::list_workspace_files,
             commands::search::workspace_search,

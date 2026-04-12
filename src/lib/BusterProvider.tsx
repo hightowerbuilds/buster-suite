@@ -348,7 +348,6 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
   function createGitTab() { openSingletonTab("git", "git_tab", "Git"); }
   function createSettingsTab() { openSingletonTab("settings", "settings_tab", "Settings"); }
   function createExtensionsTab() { openSingletonTab("extensions", "extensions_tab", "Extensions"); }
-  function createManualTab() { openSingletonTab("manual", "manual_tab", "Manual"); }
   function createDebugTab() { openSingletonTab("debug", "debug_tab", "Debug"); }
   function createProblemsTab() { openSingletonTab("problems", "problems_tab", "Problems"); }
   function popOutSidebar() {
@@ -729,7 +728,6 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     openExtensions: createExtensionsTab,
     openDebug: createDebugTab,
     openSettings: createSettingsTab,
-    openDocs: createManualTab,
   })
     .then(handles => menuListeners.push(...handles));
 
@@ -757,7 +755,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
           setStore("tabs", produce(tabs => {
             tabs.push({ id: tabId, name: stab.name || "Terminal", path: "", dirty: false, type: "terminal" });
           }));
-        } else if (["settings", "git", "extensions", "manual", "debug", "explorer"].includes(stab.type)) {
+        } else if (["settings", "git", "extensions", "debug", "explorer"].includes(stab.type)) {
           setStore("tabs", produce(tabs => {
             tabs.push({ id: stab.id, name: stab.name, path: "", dirty: false, type: stab.type as Tab["type"] });
           }));
@@ -793,7 +791,6 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     createGitTab,
     createSettingsTab,
     createExtensionsTab,
-    createManualTab,
     createDebugTab,
     createProblemsTab,
     popOutSidebar,

@@ -89,11 +89,6 @@ const App: Component = () => {
     closeCommandLine();
   }
 
-  function handleCommandLineDocs() {
-    actions.createManualTab();
-    closeCommandLine();
-  }
-
   // ── Command registry + keyboard handler ─────────────────
 
   const commandDeps: CommandDeps = {
@@ -347,7 +342,6 @@ const App: Component = () => {
         onOpenExtensions={handleCommandLineExtensions}
         onOpenDebug={handleCommandLineDebug}
         onOpenSettings={handleCommandLineSettings}
-        onOpenDocs={handleCommandLineDocs}
       />
       <CommandPalette
         visible={store.paletteVisible}

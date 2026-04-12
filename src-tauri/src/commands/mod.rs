@@ -10,5 +10,3 @@ pub mod session;
 pub mod browser;
 pub mod filebuffer;
 pub mod debugger;
-pub mod remote;
-pub mod collab;
