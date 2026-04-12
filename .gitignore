@@ -14,9 +14,12 @@ Thumbs.db
 *.swp
 *.swo
 
-# Environment
+# Environment / Secrets
 .env
-.env.local
+.env.*
+*.key
+*.pem
+credentials.json
 
 # Bun
 bun.lock
@@ -26,3 +29,7 @@ Cargo.lock
 
 # Logs
 *.log
+
+# Local dev config
+.claude/
+skills-lock.json
