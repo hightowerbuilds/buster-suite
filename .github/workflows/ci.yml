@@ -17,6 +17,10 @@ jobs:
         with:
           node-version: 20
 
+      - name: Build buster-path
+        working-directory: packages/buster-path
+        run: npm install && npm run build
+
       - name: Install dependencies
         run: npm ci
 
