@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "crates/*"]
+
 [package]
 name = "buster"
 version = "0.1.0"
@@ -91,12 +94,12 @@ memmap2 = "0.9"
 base64 = "0.22"
 
 # Buster supporting libraries
-buster-sandbox = { path = "../../buster-sandbox" }
-buster-lsp-manager = { path = "../../buster-lsp-manager" }
-buster-syntax = { path = "../../buster-syntax" }
-buster-dap = { path = "../../buster-dap" }
-buster-terminal-pro = { path = "../../buster-terminal-pro" }
-buster-remote = { path = "../../buster-remote" }
+buster-sandbox = { path = "crates/sandbox" }
+buster-lsp-manager = { path = "crates/lsp-manager" }
+buster-syntax = { path = "crates/syntax" }
+buster-dap = { path = "crates/dap" }
+buster-terminal-pro = { path = "crates/terminal-pro" }
+buster-remote = { path = "crates/remote" }
 
 [dev-dependencies]
 tempfile = "3"
