@@ -928,6 +928,13 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
         onKeyDown: handleKeyDown,
         onInput: handleInput,
         onPaste: handlePaste,
+        onCopy: (e: ClipboardEvent) => {
+          const text = getSelectedText();
+          if (text) {
+            e.preventDefault();
+            e.clipboardData?.setData("text/plain", text);
+          }
+        },
         onFocus: () => {
           isFocused = true;
           needsRedraw = true;
