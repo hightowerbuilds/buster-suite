@@ -60,8 +60,8 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
   const [ghostStyle, setGhostStyle] = createSignal<{ left: number; top: number; name: string } | null>(null);
   const [editingTab, setEditingTab] = createSignal<{ id: string; x: number; w: number } | null>(null);
 
-  // Cached tab x-positions for drag drop-target detection
-  let tabRects: Array<{ x: number; w: number }> = [];
+  // Cached tab geometry for drag drop-target detection and inline rename positioning
+  let tabRects: Array<{ x: number; w: number; nameX: number; nameW: number }> = [];
   let totalTabsWidth = 0;
   let canvasWidth = 0;
 
@@ -113,9 +113,10 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
 
       // Always allocate close button space (like DOM opacity:0)
       const tabW = PAD + iconW + ICON_GAP + nameW + ICON_GAP + CLOSE_W + PAD;
+      const nameStartX = PAD + iconW + ICON_GAP;
 
-      // Store rect for drag targeting
-      tabRects.push({ x: x + scroll, w: tabW }); // in content-space (unscrolled)
+      // Store rect for drag targeting + inline rename positioning (content-space)
+      tabRects.push({ x: x + scroll, w: tabW, nameX: nameStartX, nameW });
 
       // Skip drawing if fully off-screen
       if (x + tabW < 0 || x > scrollAreaW) {
@@ -246,10 +247,11 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
     if (idx < 0) return;
     const rect = tabRects[idx];
     if (!rect) return;
-    // Position the input over the tab name area (skip icon)
-    const nameX = rect.x - scrollX() + PAD + 20; // rough icon+gap offset
-    const nameW = rect.w - PAD * 2 - 20 - CLOSE_W;
-    setEditingTab({ id: tab.id, x: nameX, w: Math.max(60, nameW) });
+    // Exact name position: tab content-space x + name offset, adjusted for scroll
+    const inputX = rect.x - scrollX() + rect.nameX;
+    // Width: from name start to just before the close button
+    const inputW = rect.w - rect.nameX - CLOSE_W - PAD;
+    setEditingTab({ id: tab.id, x: inputX, w: Math.max(40, inputW) });
   }
 
   function commitRename(newName: string) {
@@ -374,18 +376,21 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
                 style={{
                   position: "absolute",
                   left: `${editing().x}px`,
-                  top: "6px",
+                  top: "0",
                   width: `${editing().w}px`,
-                  height: `${BAR_H - 12}px`,
-                  background: "var(--editor-bg, #1e1e2e)",
-                  color: "var(--text, #cdd6f4)",
-                  border: "1px solid var(--accent, #89b4fa)",
-                  "border-radius": "2px",
+                  height: `${BAR_H}px`,
+                  background: store.palette.editorBg,
+                  color: store.palette.text,
+                  border: "none",
+                  "border-bottom": `2px solid ${store.palette.accent}`,
                   "font-size": "13px",
                   "font-family": "'Courier New', Courier, monospace",
-                  padding: "0 4px",
+                  "line-height": `${BAR_H}px`,
+                  padding: "0",
+                  margin: "0",
                   outline: "none",
                   "z-index": "10",
+                  "box-sizing": "border-box",
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") { e.preventDefault(); commitRename(e.currentTarget.value); }
