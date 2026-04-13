@@ -647,16 +647,20 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       engine.moveCursorToLineEnd();
          } else if (e.key === "Backspace" && e.altKey) {
       e.preventDefault();
+      if (hiddenInput) hiddenInput.value = "";
       engine.deleteWordBackward();
       clearHighlightCache(); ac.trigger();
          } else if (e.key === "Backspace") {
       e.preventDefault();
+      if (hiddenInput) hiddenInput.value = "";
       engine.backspace();
       clearHighlightCache(); ac.trigger();
     } else if (e.key === "Delete") {
       e.preventDefault(); ac.dismiss();
+      if (hiddenInput) hiddenInput.value = "";
       engine.deleteForward();
-      clearHighlightCache();    } else if (e.key === "Enter") {
+      clearHighlightCache();
+    } else if (e.key === "Enter") {
       e.preventDefault(); ac.dismiss();
       // Auto-indent: match leading whitespace of current line
       const currentLine = engine.getLine(engine.cursor().line);

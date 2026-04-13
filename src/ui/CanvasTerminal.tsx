@@ -662,6 +662,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
     if (data) {
       e.preventDefault();
+      if (hiddenInput) hiddenInput.value = "";
       invoke("terminal_write", { termId: ptyId, data }).catch((e) => console.warn("Terminal IPC error:", e));
       return;
     }

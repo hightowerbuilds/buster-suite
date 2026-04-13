@@ -730,7 +730,7 @@ export function createEditorEngine(initialText: string = "", filePath?: string) 
           deltas.push({ startLine: p.line, startCol: line.length, endLine: p.line + 1, endCol: 0, newText: "" });
         }
         ls = deleteForwardAtPos(ls, p);
-        setLines(ls);
+        batch(() => { setLines(ls); setCursor(p); });
       }
       afterEdit(deltas);
     },
