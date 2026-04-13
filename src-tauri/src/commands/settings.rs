@@ -43,6 +43,8 @@ pub struct AppSettings {
     pub agent_max_commands: u32,
     #[serde(default = "default_agent_timeout")]
     pub agent_timeout_secs: u32,
+    #[serde(default)]
+    pub vim_mode: bool,
 }
 
 fn default_theme_mode() -> String { "dark".to_string() }
@@ -74,6 +76,7 @@ impl Default for AppSettings {
             agent_max_writes: 10,
             agent_max_commands: 5,
             agent_timeout_secs: 300,
+            vim_mode: false,
         }
     }
 }

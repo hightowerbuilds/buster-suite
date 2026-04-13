@@ -80,6 +80,7 @@ export interface AppSettings {
   effect_vignette: number;
   effect_grain: number;
   keybindings?: Record<string, string>;
+  vim_mode: boolean;
 }
 
 export const loadSettings = () =>
@@ -496,6 +497,10 @@ export const surfaceGetLastPaint = (surfaceId: number) =>
 
 export const surfaceResizeNotify = (surfaceId: number, width: number, height: number) =>
   invoke<void>("surface_resize_notify", { surfaceId, width, height });
+
+// ── Keymap (Lua) ────────────────────────────────────────────────────
+
+export const evaluateKeymap = () => invoke<string>("evaluate_keymap");
 
 // ── Built-in Browser Module ──────────────────────────────────────────
 

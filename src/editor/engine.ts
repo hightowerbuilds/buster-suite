@@ -743,6 +743,158 @@ export function createEditorEngine(initialText: string = "", filePath?: string) 
       afterEdit([{ startLine: s.line, startCol: s.col, endLine: e.line, endCol: e.col, newText: "" }]);
     },
 
+    // ── Vim-specific methods ────────────────────────────────────
+
+    /** Move cursor to first non-whitespace character on current line (Vim ^). */
+    moveCursorToFirstNonBlank(extend: boolean = false) {
+      const ls = lines();
+      const line = ls[cursor().line] ?? "";
+      const match = line.match(/^\s*/);
+      const col = match ? match[0].length : 0;
+      const next = { line: cursor().line, col };
+      batch(() => {
+        if (extend) {
+          const anchor = sel()?.anchor ?? cursor();
+          setSel({ anchor, head: next });
+        } else {
+          setSel(null);
+        }
+        setCursor(next);
+      });
+    },
+
+    /** Move cursor to end of current/next word (Vim e). */
+    moveToWordEnd(extend: boolean = false) {
+      const p = cursor();
+      const ls = lines();
+      const line = ls[p.line] ?? "";
+      let col = p.col;
+
+      // If at end of word or on whitespace, skip to next word first
+      if (col < line.length - 1) col++;
+      // Skip whitespace
+      while (col < line.length && /\s/.test(line[col])) col++;
+      // Skip to end of word
+      if (/\w/.test(line[col] ?? "")) {
+        while (col < line.length - 1 && /\w/.test(line[col + 1])) col++;
+      } else {
+        while (col < line.length - 1 && !/\w/.test(line[col + 1]) && !/\s/.test(line[col + 1])) col++;
+      }
+
+      const next = { line: p.line, col };
+      batch(() => {
+        if (extend) {
+          const anchor = sel()?.anchor ?? p;
+          setSel({ anchor, head: next });
+        } else {
+          setSel(null);
+        }
+        setCursor(next);
+      });
+    },
+
+    /** Delete N lines from cursor position (Vim dd with count). Returns deleted text. */
+    deleteLine(count: number = 1): string {
+      recordUndo();
+      const ls = lines();
+      const startLine = cursor().line;
+      const endLine = Math.min(startLine + count, ls.length);
+      const deleted = ls.slice(startLine, endLine).join("\n");
+
+      const from: Pos = { line: startLine, col: 0 };
+      let to: Pos;
+      if (endLine < ls.length) {
+        to = { line: endLine, col: 0 };
+      } else if (startLine > 0) {
+        to = { line: startLine, col: 0 };
+        from.line = startLine - 1;
+        from.col = ls[startLine - 1].length;
+      } else {
+        // Only line — clear it
+        to = { line: 0, col: ls[0].length };
+      }
+
+      const newLines = deleteRangeFromLines(ls, from, to);
+      const newPos = { line: Math.min(from.line, newLines.length - 1), col: 0 };
+      batch(() => { setLines(newLines); setCursor(newPos); setSel(null); });
+      afterEdit([{ startLine: from.line, startCol: from.col, endLine: to.line, endCol: to.col, newText: "" }]);
+      return deleted;
+    },
+
+    /** Return N lines as text from cursor position without deleting (Vim yy). */
+    yankLine(count: number = 1): string {
+      const ls = lines();
+      const startLine = cursor().line;
+      const endLine = Math.min(startLine + count, ls.length);
+      return ls.slice(startLine, endLine).join("\n");
+    },
+
+    /** Insert a new line below cursor and position cursor there (Vim o). */
+    openLineBelow() {
+      recordUndo();
+      const ls = lines().slice();
+      const p = cursor();
+      const line = ls[p.line] ?? "";
+      const indent = line.match(/^\s*/)![0];
+      ls.splice(p.line + 1, 0, indent);
+      const newPos = { line: p.line + 1, col: indent.length };
+      batch(() => { setLines(ls); setCursor(newPos); setSel(null); });
+      afterEdit([{ startLine: p.line, startCol: line.length, endLine: p.line, endCol: line.length, newText: "\n" + indent }]);
+    },
+
+    /** Insert a new line above cursor and position cursor there (Vim O). */
+    openLineAbove() {
+      recordUndo();
+      const ls = lines().slice();
+      const p = cursor();
+      const line = ls[p.line] ?? "";
+      const indent = line.match(/^\s*/)![0];
+      ls.splice(p.line, 0, indent);
+      const newPos = { line: p.line, col: indent.length };
+      batch(() => { setLines(ls); setCursor(newPos); setSel(null); });
+      afterEdit([{ startLine: p.line, startCol: 0, endLine: p.line, endCol: 0, newText: indent + "\n" }]);
+    },
+
+    /** Join current line with next line (Vim J). */
+    joinLines() {
+      const ls = lines();
+      const p = cursor();
+      if (p.line >= ls.length - 1) return;
+      recordUndo();
+      const currentLen = ls[p.line].length;
+      const nextTrimmed = ls[p.line + 1].trimStart();
+      const joined = ls[p.line] + (nextTrimmed ? " " + nextTrimmed : "");
+      const result = ls.slice();
+      result[p.line] = joined;
+      result.splice(p.line + 1, 1);
+      batch(() => { setLines(result); setCursor({ line: p.line, col: currentLen }); });
+      afterEdit([{ startLine: p.line, startCol: currentLen, endLine: p.line + 1, endCol: ls[p.line + 1].length, newText: nextTrimmed ? " " + nextTrimmed : "" }]);
+    },
+
+    /** Replace character under cursor without moving (Vim r). */
+    replaceChar(char: string) {
+      const p = cursor();
+      const ls = lines();
+      const line = ls[p.line] ?? "";
+      if (p.col >= line.length) return;
+      recordUndo();
+      const result = ls.slice();
+      result[p.line] = line.slice(0, p.col) + char + line.slice(p.col + 1);
+      batch(() => { setLines(result); setCursor(p); });
+      afterEdit([{ startLine: p.line, startCol: p.col, endLine: p.line, endCol: p.col + 1, newText: char }]);
+    },
+
+    /** Get the word under cursor (for Vim * search). */
+    getWordUnderCursor(): string {
+      const p = cursor();
+      const line = lines()[p.line] ?? "";
+      let start = p.col;
+      let end = p.col;
+      while (start > 0 && /\w/.test(line[start - 1])) start--;
+      while (end < line.length && /\w/.test(line[end])) end++;
+      return line.slice(start, end);
+    },
+
     // ── Undo / Redo ─────────────────────────────────────────────
 
     undo(): boolean {
@@ -931,8 +1083,8 @@ export function createEditorEngine(initialText: string = "", filePath?: string) 
       afterEdit(null);
     },
 
-    /** Join current line with the next line. */
-    joinLines() {
+    /** @deprecated Duplicate — use the Vim-methods joinLines above. */
+    _joinLinesLegacy() {
       const ls = lines();
       const c = cursor();
       if (c.line >= ls.length - 1) return;

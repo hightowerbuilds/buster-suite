@@ -13,6 +13,7 @@ import { createCodeActions } from "./editor-code-actions";
 import { createGhostText } from "./editor-ghost-text";
 import { createInlayHints } from "./editor-inlay-hints";
 import { createEditorA11y } from "./editor-a11y";
+import { createVimHandler } from "./vim-mode";
 import CanvasSurface from "../ui/CanvasSurface";
 import { clipboardWrite } from "../lib/clipboard";
 import { basename, extname } from "buster-path";
@@ -45,7 +46,7 @@ interface CanvasEditorProps {
 // ─── Component ──────────────────────────────────────────────────────
 
 const CanvasEditor: Component<CanvasEditorProps> = (props) => {
-  const { store } = useBuster();
+  const { store, setStore, actions } = useBuster();
   const palette = () => store.palette;
   const workspaceRoot = () => store.workspaceRoot;
   const tabTrapping = () => store.tabTrapping;
@@ -56,6 +57,23 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
   // ── Engine ──────────────────────────────────────────────────────
 
   const engine = createEditorEngine(props.initialText, props.filePath ?? undefined);
+
+  // ── Vim mode ──────────────────────────────────────────────────
+  const vim = createVimHandler();
+  createEffect(() => { vim.setEnabled(store.settings.vim_mode ?? false); });
+
+  const vimDeps = {
+    openFind: () => setStore("findVisible", true),
+    openCommandPalette: (prefix: string) => {
+      setStore("paletteInitialQuery", prefix);
+      setStore("paletteVisible", true);
+    },
+    handleSave: () => actions.handleSave(),
+    handleTabClose: () => {
+      const tab = store.tabs.find(t => t.id === store.activeTabId);
+      if (tab) actions.handleTabClose(tab.id);
+    },
+  };
 
   // Expose engine to parent (for save, getText, etc.)
   props.onEngineReady?.(engine);
@@ -390,6 +408,14 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
 
   function handleKeyDown(e: KeyboardEvent) {
     if (isComposing) return;
+
+    // Vim mode intercept — returns true if Vim consumed the key
+    if (vim.enabled() && vim.handleVimKey(e, engine, vimDeps)) {
+      e.preventDefault();
+      scheduleRender();
+      return;
+    }
+
     const isMod = e.metaKey || e.ctrlKey;
 
     // Autocomplete interception
@@ -700,6 +726,9 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     const text = hiddenInput.value;
     if (!text) return;
     hiddenInput.value = "";
+
+    // In Vim Normal/Visual mode, suppress text insertion
+    if (vim.enabled() && vim.mode() !== "insert") return;
 
     // Auto-close brackets and quotes
     if (text.length === 1 && BRACKET_PAIRS[text]) {

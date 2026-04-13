@@ -350,6 +350,8 @@ pub fn run() {
             commands::browser_module::browser_module_on_visibility,
             commands::browser_module::browser_module_on_mouse_move,
             commands::browser_module::browser_module_close,
+            // Keymap (Lua evaluation)
+            commands::keymap::evaluate_keymap,
             // Session
             commands::session::save_session,
             commands::session::load_session,
