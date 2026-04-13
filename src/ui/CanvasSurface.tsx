@@ -7,6 +7,7 @@ interface CanvasSurfaceProps {
   canvasRef?: (el: HTMLCanvasElement) => void;
   inputRef?: (el: HTMLTextAreaElement) => void;
   a11y?: JSX.Element;
+  searchOverlay?: JSX.Element;
   onClick?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseDown?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseMove?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
@@ -54,6 +55,7 @@ const CanvasSurface: Component<CanvasSurfaceProps> = (props) => {
         style={{ width: "100%", height: "100%", display: "block" }}
       />
       {props.a11y}
+      {props.searchOverlay}
       <textarea
         {...textareaProps}
         ref={props.inputRef}

@@ -367,6 +367,13 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     setStore("termPtyIds", tabId, ptyId);
   }
 
+  function handleTermTitleChange(tabId: string, title: string) {
+    const idx = store.tabs.findIndex(t => t.id === tabId);
+    if (idx >= 0) {
+      setStore("tabs", idx, "name", title);
+    }
+  }
+
   // ── Tab management ───────────────────────────────────────
 
   function switchToTab(tabId: string) {
@@ -831,6 +838,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     createProblemsTab,
     popOutSidebar,
     handleTermIdReady,
+    handleTermTitleChange,
     openWorkspace,
     changeDirectory,
     closeDirectory,

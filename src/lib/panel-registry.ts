@@ -20,6 +20,7 @@ export interface PanelDeps {
   activeTabId: () => string | null;
   handleFileSelect: (path: string) => Promise<void>;
   handleTermIdReady: (tabId: string, termId: string) => void;
+  handleTermTitleChange: (tabId: string, title: string) => void;
   handleTabClose: (id: string) => void;
   openWorkspace: (path: string) => void;
   changeDirectory: () => void;

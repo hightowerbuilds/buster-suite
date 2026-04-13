@@ -177,6 +177,7 @@ const App: Component = () => {
     diffHunksMap: () => store.diffHunksMap,
     handleFileSelect: actions.handleFileSelect,
     handleTermIdReady: actions.handleTermIdReady,
+    handleTermTitleChange: actions.handleTermTitleChange,
     handleTabClose: actions.handleTabClose,
     openWorkspace: actions.openWorkspace,
     changeDirectory: actions.changeDirectory,

@@ -2,7 +2,7 @@
 
 A canvas-rendered IDE built from scratch with Tauri, Rust, and SolidJS.
 
-Every character on screen — code, terminal, UI — is drawn on an HTML Canvas. No DOM text anywhere. The editor uses a TypeScript string[] buffer backed by SolidJS signals, Tree-sitter for syntax highlighting, and Pretext for text measurement. The terminal runs a real PTY through a VT100 parser in Rust and renders the cell grid on canvas. The whole app ships as an 11 MB installer.
+Every character on screen — code, terminal, UI — is drawn on an HTML Canvas. No DOM text anywhere. The editor uses a TypeScript string[] buffer backed by SolidJS signals, Tree-sitter for syntax highlighting, and Pretext for text measurement. The terminal runs a real PTY through a VT100 parser in Rust and renders the cell grid on canvas.
 
 ## Install
 
@@ -53,7 +53,6 @@ Open Buster. The welcome screen shows an ASCII particle animation. Open the comm
 | Ctrl+G | Go to Line |
 | Cmd+Shift+O | Go to Symbol |
 | Cmd+T | New terminal tab |
-| Cmd+L | AI Agent |
 | Cmd+Shift+G | Git panel |
 | Cmd+B | Toggle sidebar |
 | Cmd+O | Open folder |
@@ -69,9 +68,7 @@ Open Buster. The welcome screen shows an ASCII particle animation. Open the comm
 
 **Terminal** — Full terminal emulator rendered on canvas. VT100/ANSI parsing in Rust via the vt100 crate with sixel image support. Supports NeoVim, htop, tmux, and anything else that runs in a terminal. Mouse reporting, bracketed paste, scrollback history, configurable themes. Each terminal opens as a tab alongside your files.
 
-**AI Agent** — Chat with Claude (Sonnet 4.6, Opus 4.6, Haiku 4.5), Ollama (local), Codex (OpenAI), or Gemini (Google). The agent can read files, write code, search the codebase, and run commands in your workspace. State-changing tools require user approval. Configurable rate limits for tool calls, writes, and commands. Model gallery with card-flip UI for browsing and queuing models. API keys stored securely per provider.
-
-**Git & GitHub** — 30 built-in git commands with no terminal required. Status, staging, commit (with amend), push/pull/fetch, branches, stash, remote management, blame overlay, diff gutter indicators, conflict resolution, and a canvas-rendered commit graph with colored lanes. Browse GitHub PRs and issues directly in the editor via the gh CLI.
+**Git** — 30 built-in git commands with no terminal required. Status, staging, commit (with amend), push/pull/fetch, branches, stash, remote management, blame overlay, diff gutter indicators, conflict resolution, and a canvas-rendered commit graph with colored lanes.
 
 **LSP** — Language server support for Rust (rust-analyzer), TypeScript/JavaScript (typescript-language-server), Python (pyright), and Go (gopls). Autocomplete, hover, signature help, code actions, inlay hints, go-to-definition, document symbols, rename refactoring, find all references, and a diagnostics panel with automatic crash recovery.
 
@@ -89,19 +86,18 @@ Open Buster. The welcome screen shows an ASCII particle animation. Open the comm
 
 **Extensions** — WASM-sandboxed extensions with capability-based permissions. Extensions can render custom UI surfaces via display list commands, control embedded browser webviews, and connect via WebSocket or HTTP SSE gateways to external services. Three working Rust extensions exist: an embedded browser with devtools, a pixel art editor, and a prompt stacker.
 
-**Guided Tour** — An 11-step canvas-animated tutorial that teaches every feature including git and AI integration. Each step assembles as ASCII particle text.
+**Guided Tour** — A canvas-animated tutorial that teaches every feature including git integration. Each step assembles as ASCII particle text.
 
 ## Architecture
 
 ```
 src/                          Frontend (TypeScript + SolidJS)
   editor/                     Canvas editor, engine, Tree-sitter bridge, LSP features
-  ui/                         Sidebar, tabs, terminal, AI chat, git, debugger, command palette, tour
+  ui/                         Sidebar, tabs, terminal, git, debugger, command palette, tour
   lib/                        IPC bridge, TanStack Query, commands, menu handlers, session
 
 src-tauri/src/                Backend (Rust)
-  ai/                         Agent loop, tool execution, approval manager
-  commands/                   IPC handlers (file, git, lsp, terminal, ai, extensions, debugger, session)
+  commands/                   IPC handlers (file, git, lsp, terminal, extensions, debugger, session)
   debugger/                   DAP client and session manager
   extensions/                 WASM runtime, gateway, manifest, UI surfaces
   lsp/                        Language server client, diagnostic forwarding
@@ -125,7 +121,6 @@ src-tauri/src/                Backend (Rust)
 | Text measurement | Pretext (@chenglou/pretext) |
 | Terminal parsing | vt100 crate |
 | Terminal PTY | portable-pty |
-| AI models | Claude API + Ollama + Codex + Gemini |
 | Extension runtime | wasmtime (WASM sandbox) |
 | UI font | Courier New |
 | Editor font | JetBrains Mono |
@@ -133,15 +128,15 @@ src-tauri/src/                Backend (Rust)
 
 ### Why these choices
 
-**SolidJS** over React — No virtual DOM. Fine-grained reactivity means signals update only what changed. 7 KB runtime.
+**SolidJS** over React — No virtual DOM. Fine-grained reactivity means signals update only what changed.
 
-**Tauri** over Electron — Rust backend with native webview. 11 MB installer instead of 800 MB. Lower memory usage. Direct access to system APIs.
+**Tauri** over Electron — Rust backend with native webview. Fraction of the install size. Lower memory usage. Direct access to system APIs.
 
-**Canvas** over DOM — Every character is drawn via Canvas 2D. Pretext measures text 600x faster than DOM layout. No reflow, no style recalculation.
+**Canvas** over DOM — Every character is drawn via Canvas 2D. No reflow, no style recalculation.
 
 **TypeScript string[]** over Rust IPC — Zero-latency edits with no IPC per keystroke. SolidJS signals provide reactive updates. Undo/redo with time-based grouping.
 
-**vt100 + Canvas** over xterm.js — Removed 333 KB of JavaScript. Terminal state lives in Rust. Rendering goes through the same canvas pipeline as the editor.
+**vt100 + Canvas** over xterm.js — Terminal state lives in Rust. Rendering goes through the same canvas pipeline as the editor.
 
 ## License
 

@@ -29,6 +29,7 @@ registerPanel("terminal", {
       active={isActive()}
       cwd={deps.workspaceRoot() ?? undefined}
       onTermIdReady={deps.handleTermIdReady}
+      onTitleChange={deps.handleTermTitleChange}
       autoFocus={tab.id === deps.activeTabId()}
     />
   ),

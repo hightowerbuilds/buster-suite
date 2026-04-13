@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import CanvasSurface from "./CanvasSurface";
 import { useBuster } from "../lib/buster-context";
 import { FONT_FAMILY, getCharWidth, measureTextWidth } from "../editor/text-measure";
+import { showToast } from "./CanvasToasts";
 
 interface TermCell {
   ch: string;
@@ -13,6 +14,10 @@ interface TermCell {
   italic: boolean;
   underline: boolean;
   inverse: boolean;
+  strikethrough: boolean;
+  faint: boolean;
+  /** 0 = wide-char continuation (skip), 1 = normal, 2 = double-width */
+  width: number;
 }
 
 /** A decoded sixel image received from the Rust backend. */
@@ -44,6 +49,9 @@ interface TermScreenDelta {
   mouse_mode?: string;
   mouse_encoding?: string;
   bracketed_paste?: boolean;
+  title?: string;
+  bell?: boolean;
+  alt_screen?: boolean;
 }
 
 interface CanvasTerminalProps {
@@ -51,6 +59,7 @@ interface CanvasTerminalProps {
   active: boolean;
   cwd?: string;
   onTermIdReady: (termTabId: string, ptyId: string) => void;
+  onTitleChange?: (termTabId: string, title: string) => void;
   autoFocus?: boolean;
 }
 
@@ -82,7 +91,9 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   let selStart: { row: number; col: number } | null = null;
   let selEnd: { row: number; col: number } | null = null;
   let isSelecting = false;
-  let scrollback: TermCell[][] = [];
+  let scrollbackNormal: TermCell[][] = [];
+  let scrollbackAlt: TermCell[][] = [];
+  let inAltScreen = false;
   let scrollOffset = 0;
   const MAX_SCROLLBACK = 10_000;
   let mouseMode = "none";
@@ -90,6 +101,11 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   let bracketedPaste = false;
   let sixelImages: SixelImageData[] = [];
   let sixelBitmapCache: Map<string, ImageData> = new Map();
+  let bellFlashUntil = 0;
+  let searchVisible = false;
+  let searchQuery = "";
+  let searchMatches: { row: number; col: number; len: number }[] = [];
+  let searchMatchIdx = -1;
 
   const termA11y = createTerminalA11y();
 
@@ -154,12 +170,63 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     return true;
   }
 
+  function scrollback(): TermCell[][] {
+    return inAltScreen ? scrollbackAlt : scrollbackNormal;
+  }
+
   function getVisibleRows(): (TermCell[] | undefined)[] {
     if (scrollOffset === 0) return cells;
-    const combined = [...scrollback, ...cells];
+    const sb = scrollback();
+    const combined = [...sb, ...cells];
     const visibleCount = cells.length || termRows;
     const start = Math.max(0, combined.length - visibleCount - scrollOffset);
     return combined.slice(start, start + visibleCount);
+  }
+
+  function runTermSearch(query: string) {
+    searchMatches = [];
+    if (!query) { needsRedraw = true; scheduleTermRender(); return; }
+    const q = query.toLowerCase();
+    const allRows = [...scrollback(), ...cells];
+    for (let r = 0; r < allRows.length; r++) {
+      const row = allRows[r];
+      if (!row) continue;
+      const text = row.map(c => c.ch).join("").toLowerCase();
+      let idx = 0;
+      while ((idx = text.indexOf(q, idx)) !== -1) {
+        // Convert allRows index to a displayable match coordinate
+        searchMatches.push({ row: r, col: idx, len: q.length });
+        idx += q.length;
+      }
+    }
+    searchMatchIdx = searchMatches.length > 0 ? searchMatches.length - 1 : -1;
+    // Scroll to the current match
+    if (searchMatchIdx >= 0) {
+      const match = searchMatches[searchMatchIdx];
+      const sb = scrollback();
+      const totalRows = sb.length + (cells.length || termRows);
+      const visibleCount = cells.length || termRows;
+      const matchAbsolute = match.row;
+      const liveStart = totalRows - visibleCount;
+      if (matchAbsolute < liveStart) {
+        scrollOffset = liveStart - matchAbsolute;
+      }
+    }
+    needsRedraw = true; scheduleTermRender();
+  }
+
+  function jumpToSearchMatch(dir: 1 | -1) {
+    if (searchMatches.length === 0) return;
+    searchMatchIdx = (searchMatchIdx + dir + searchMatches.length) % searchMatches.length;
+    const match = searchMatches[searchMatchIdx];
+    const sb = scrollback();
+    const totalRows = sb.length + (cells.length || termRows);
+    const visibleCount = cells.length || termRows;
+    const liveStart = totalRows - visibleCount;
+    if (match.row < liveStart - scrollOffset || match.row >= liveStart - scrollOffset + visibleCount) {
+      scrollOffset = Math.max(0, liveStart - match.row);
+    }
+    needsRedraw = true; scheduleTermRender();
   }
 
   let renderScheduled = false;
@@ -212,14 +279,16 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
       for (let col = 0; col < rowCells.length; col++) {
         const cell = rowCells[col];
+        if (cell.width === 0) continue; // Skip continuation cells
         const x = col * cw;
         const y = row * ch;
+        const cellW = cell.width === 2 ? cw * 2 : cw;
 
         // Background (skip default terminal bg for performance)
         const isDefaultBg = cell.bg[0] === 30 && cell.bg[1] === 30 && cell.bg[2] === 46;
         if (!isDefaultBg) {
           ctx.fillStyle = `rgb(${cell.bg[0]}, ${cell.bg[1]}, ${cell.bg[2]})`;
-          ctx.fillRect(x, y, cw + 1, ch);
+          ctx.fillRect(x, y, cellW + 1, ch);
         }
       }
     }
@@ -235,6 +304,23 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       }
     }
 
+    // Search match highlights
+    if (searchVisible && searchMatches.length > 0) {
+      const sb = scrollback();
+      const totalRows = sb.length + (cells.length || termRows);
+      const visibleCount = cells.length || termRows;
+      const viewStart = totalRows - visibleCount - scrollOffset;
+
+      for (let mi = 0; mi < searchMatches.length; mi++) {
+        const m = searchMatches[mi];
+        const displayRow = m.row - viewStart;
+        if (displayRow < 0 || displayRow >= visibleCount) continue;
+        const isCurrent = mi === searchMatchIdx;
+        ctx.fillStyle = isCurrent ? "rgba(250, 179, 135, 0.4)" : "rgba(137, 180, 250, 0.25)";
+        ctx.fillRect(m.col * cw, displayRow * ch, m.len * cw, ch);
+      }
+    }
+
     // Draw text — direct fillText (browser's internal glyph cache handles caching)
     const fs = fontSize();
     const baseFont = `${fs}px ${FONT_FAMILY}`;
@@ -246,17 +332,23 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
       for (let col = 0; col < rowCells.length; col++) {
         const cell = rowCells[col];
+        // Skip wide-char continuation cells (rendered by the wide char itself)
+        if (cell.width === 0) continue;
         if (cell.ch === " " || cell.ch === "") continue;
 
         const x = col * cw;
         const y = row * ch;
+        const cellW = cell.width === 2 ? cw * 2 : cw;
 
         // Font style
         const weight = cell.bold ? "bold " : "";
         const style = cell.italic ? "italic " : "";
         const cellFont = (weight || style) ? `${style}${weight}${fs}px ${FONT_FAMILY}` : baseFont;
 
-        const fgColor = `rgb(${cell.fg[0]}, ${cell.fg[1]}, ${cell.fg[2]})`;
+        // Faint: reduce opacity to 50%
+        const fgColor = cell.faint
+          ? `rgba(${cell.fg[0]}, ${cell.fg[1]}, ${cell.fg[2]}, 0.5)`
+          : `rgb(${cell.fg[0]}, ${cell.fg[1]}, ${cell.fg[2]})`;
         ctx.font = cellFont;
         ctx.fillStyle = fgColor;
         ctx.fillText(cell.ch, x, y);
@@ -267,7 +359,18 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(x, y + ch - 1);
-          ctx.lineTo(x + cw, y + ch - 1);
+          ctx.lineTo(x + cellW, y + ch - 1);
+          ctx.stroke();
+        }
+
+        // Strikethrough
+        if (cell.strikethrough) {
+          ctx.strokeStyle = fgColor;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          const mid = y + ch / 2;
+          ctx.moveTo(x, mid);
+          ctx.lineTo(x + cellW, mid);
           ctx.stroke();
         }
       }
@@ -321,6 +424,20 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       ctx.fillRect(w - tw - 16, 4, tw + 12, fs + 4);
       ctx.fillStyle = p.text;
       ctx.fillText(label, w - tw - 10, 6);
+    }
+
+    // Bell flash overlay
+    if (bellFlashUntil > 0) {
+      const remaining = bellFlashUntil - performance.now();
+      if (remaining > 0) {
+        ctx.fillStyle = "rgba(205, 214, 244, 0.08)";
+        ctx.fillRect(0, 0, w, h);
+        // Schedule a redraw to clear the flash
+        needsRedraw = true;
+        scheduleTermRender();
+      } else {
+        bellFlashUntil = 0;
+      }
     }
   }
 
@@ -455,7 +572,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
     const lines = Math.ceil(Math.abs(e.deltaY) / charHeight) || 3;
     if (e.deltaY < 0) {
-      scrollOffset = Math.min(scrollback.length, scrollOffset + lines);
+      scrollOffset = Math.min(scrollback().length, scrollOffset + lines);
     } else {
       scrollOffset = Math.max(0, scrollOffset - lines);
     }
@@ -466,6 +583,22 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
   function handleKeyDown(e: KeyboardEvent) {
     if (!ptyId) return;
+
+    // Cmd+F: open terminal search
+    if (e.metaKey && e.key === "f") {
+      e.preventDefault();
+      e.stopPropagation();
+      searchVisible = true;
+      searchQuery = "";
+      searchMatches = [];
+      searchMatchIdx = -1;
+      needsRedraw = true; scheduleTermRender();
+      // Focus the search input after it renders
+      requestAnimationFrame(() => {
+        containerRef?.querySelector<HTMLInputElement>(".term-search-input")?.focus();
+      });
+      return;
+    }
 
     // Cmd+C: copy selection (Ctrl+C goes to terminal as interrupt)
     if (e.metaKey && e.key === "c") {
@@ -563,12 +696,24 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
         if (event.payload.term_id === ptyId) {
           const d = event.payload.delta;
 
+          // Handle alt-screen transitions
+          if (d.alt_screen !== undefined && d.alt_screen !== inAltScreen) {
+            if (d.alt_screen) {
+              // Entering alt screen — start fresh alt scrollback
+              scrollbackAlt = [];
+            }
+            // Exiting alt screen — discard alt scrollback (normal scrollback preserved)
+            inAltScreen = d.alt_screen;
+            scrollOffset = 0;
+          }
+
           // Detect scrolling and capture scrollback before applying delta
           if (!d.full && cells.length > 1 && d.changed_rows.length > cells.length / 2) {
             const newRow0 = d.changed_rows.find(cr => cr.index === 0)?.cells;
             if (newRow0 && rowTextMatch(cells[1], newRow0) && cells[0]) {
-              scrollback.push(cells[0]);
-              if (scrollback.length > MAX_SCROLLBACK) scrollback.shift();
+              const sb = inAltScreen ? scrollbackAlt : scrollbackNormal;
+              sb.push(cells[0]);
+              if (sb.length > MAX_SCROLLBACK) sb.shift();
             }
           }
 
@@ -585,6 +730,17 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
           mouseMode = d.mouse_mode ?? "none";
           mouseEncoding = d.mouse_encoding ?? "default";
           bracketedPaste = d.bracketed_paste ?? false;
+
+          // OSC 2 title → update tab name
+          if (d.title) {
+            props.onTitleChange?.(props.termTabId, d.title);
+          }
+
+          // Bell flash
+          if (d.bell) {
+            bellFlashUntil = performance.now() + 150;
+          }
+
           needsRedraw = true; scheduleTermRender();
           termA11y.onScreenDelta(d);
         }
@@ -614,6 +770,28 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
         }
       }
     ).then((fn) => { unlistenSixel = fn as unknown as () => void; });
+
+    // Listen for PTY crash recovery
+    let unlistenRestart: (() => void) | null = null;
+    listen<{ term_id: string; restart_count: number }>(
+      "terminal-pty-restart",
+      (event) => {
+        if (event.payload.term_id === ptyId) {
+          showToast(`Terminal restarted (attempt ${event.payload.restart_count}/3)`, "info");
+        }
+      }
+    ).then((fn) => { unlistenRestart = fn as unknown as () => void; });
+
+    // Listen for fatal PTY errors
+    let unlistenError: (() => void) | null = null;
+    listen<{ term_id: string; message: string }>(
+      "terminal-pty-error",
+      (event) => {
+        if (event.payload.term_id === ptyId) {
+          showToast(event.payload.message, "error");
+        }
+      }
+    ).then((fn) => { unlistenError = fn as unknown as () => void; });
 
     // Listen for terminal theme changes — force a full re-render
     let unlistenTheme: (() => void) | null = null;
@@ -657,11 +835,15 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       clearTimeout(resizeTimer);
       if (unlisten) unlisten();
       if (unlistenSixel) unlistenSixel();
+      if (unlistenRestart) unlistenRestart();
+      if (unlistenError) unlistenError();
       if (unlistenTheme) unlistenTheme();
       if (resizeObs) resizeObs.disconnect();
       termA11y.cleanup();
       sixelImages = [];
       sixelBitmapCache.clear();
+      scrollbackNormal = [];
+      scrollbackAlt = [];
       if (ptyId) {
         invoke("terminal_kill", { termId: ptyId }).catch((e) => console.warn("Terminal IPC error:", e));
       }
@@ -672,10 +854,63 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     hiddenInput?.focus();
   }
 
+  function closeSearch() {
+    searchVisible = false;
+    searchQuery = "";
+    searchMatches = [];
+    searchMatchIdx = -1;
+    needsRedraw = true; scheduleTermRender();
+    hiddenInput?.focus();
+  }
+
+  function handleSearchKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape") { e.preventDefault(); closeSearch(); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      jumpToSearchMatch(e.shiftKey ? -1 : 1);
+    }
+  }
+
+  function handleSearchInput(e: InputEvent) {
+    searchQuery = (e.target as HTMLInputElement).value;
+    runTermSearch(searchQuery);
+  }
+
   return (
     <CanvasSurface
       containerRef={(el) => { containerRef = el; }}
       class="canvas-terminal"
+      searchOverlay={searchVisible ? (
+        <div class="term-search-bar" style={{
+          position: "absolute", top: "4px", right: "8px", "z-index": "10",
+          display: "flex", "align-items": "center", gap: "4px",
+          background: "var(--surface0, #313244)", padding: "4px 8px",
+          "border-radius": "4px", "font-size": "13px",
+          "font-family": "'Courier New', Courier, monospace",
+          color: "var(--text, #cdd6f4)",
+        }}>
+          <input
+            class="term-search-input"
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onInput={handleSearchInput}
+            onKeyDown={handleSearchKeyDown}
+            style={{
+              background: "var(--surface1, #45475a)", border: "none",
+              color: "var(--text, #cdd6f4)", padding: "2px 6px",
+              "font-size": "13px", "font-family": "'Courier New', Courier, monospace",
+              outline: "none", width: "160px",
+            }}
+          />
+          <span style={{ opacity: "0.6", "font-size": "11px" }}>
+            {searchMatches.length > 0 ? `${searchMatchIdx + 1}/${searchMatches.length}` : "0/0"}
+          </span>
+          <button onClick={() => jumpToSearchMatch(-1)} style={{ background: "none", border: "none", color: "var(--text, #cdd6f4)", cursor: "pointer", padding: "0 2px" }} title="Previous">↑</button>
+          <button onClick={() => jumpToSearchMatch(1)} style={{ background: "none", border: "none", color: "var(--text, #cdd6f4)", cursor: "pointer", padding: "0 2px" }} title="Next">↓</button>
+          <button onClick={closeSearch} style={{ background: "none", border: "none", color: "var(--text, #cdd6f4)", cursor: "pointer", padding: "0 2px" }} title="Close">×</button>
+        </div>
+      ) : undefined}
       canvasRef={(el) => { canvasRef = el; }}
       inputRef={(el) => { hiddenInput = el; }}
       a11y={<termA11y.ParallelDOM />}

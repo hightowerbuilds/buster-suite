@@ -15,6 +15,7 @@ pub fn terminal_spawn(
     let app_handle = app.clone();
     let app_sixel = app.clone();
     let app_error = app.clone();
+    let app_restart = app.clone();
     state.spawn(
         rows,
         cols,
@@ -35,6 +36,12 @@ pub fn terminal_spawn(
             let _ = app_error.emit("terminal-pty-error", PtyErrorEvent {
                 term_id: id,
                 message,
+            });
+        },
+        move |id, count| {
+            let _ = app_restart.emit("terminal-pty-restart", PtyRestartEvent {
+                term_id: id,
+                restart_count: count,
             });
         },
     )
@@ -119,4 +126,10 @@ struct SixelEvent {
 struct PtyErrorEvent {
     term_id: String,
     message: String,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct PtyRestartEvent {
+    term_id: String,
+    restart_count: u32,
 }

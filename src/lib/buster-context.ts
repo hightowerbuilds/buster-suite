@@ -41,6 +41,7 @@ export interface BusterActions {
   createProblemsTab(): void;
   popOutSidebar(): void;
   handleTermIdReady(tabId: string, ptyId: string): void;
+  handleTermTitleChange(tabId: string, title: string): void;
 
   // Workspace management
   openWorkspace(path: string): void;

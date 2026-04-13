@@ -39,6 +39,10 @@ pub struct TermCell {
     pub italic: bool,
     pub underline: bool,
     pub inverse: bool,
+    pub strikethrough: bool,
+    pub faint: bool,
+    /// 0 = wide-char continuation (skip), 1 = normal, 2 = double-width
+    pub width: u8,
 }
 
 #[derive(Clone, Serialize)]
@@ -141,6 +145,14 @@ fn extract_screen(parser: &vt100::Parser) -> TermScreen {
                 color_to_bg_rgb(&cell.bgcolor())
             };
 
+            let width = if cell.is_wide() {
+                2
+            } else if cell.is_wide_continuation() {
+                0
+            } else {
+                1
+            };
+
             row_cells.push(TermCell {
                 ch,
                 fg,
@@ -149,6 +161,9 @@ fn extract_screen(parser: &vt100::Parser) -> TermScreen {
                 italic: cell.italic(),
                 underline: cell.underline(),
                 inverse: cell.inverse(),
+                strikethrough: false, // vt100 0.15 doesn't expose SGR 9
+                faint: false,         // vt100 0.15 doesn't expose SGR 2
+                width,
             });
         }
         cells.push(row_cells);
@@ -182,12 +197,20 @@ pub struct TermScreenDelta {
     /// "default", "utf8", "sgr"
     pub mouse_encoding: String,
     pub bracketed_paste: bool,
+    /// Window title from OSC 2 (None if unchanged)
+    pub title: Option<String>,
+    /// True if BEL (0x07) fired since last delta
+    pub bell: bool,
+    /// True when terminal is in alternate screen mode (vim, less, etc.)
+    pub alt_screen: bool,
 }
 
 fn compute_delta(
     new_screen: TermScreen,
     last_cells: &mut Vec<Vec<TermCell>>,
     parser: &vt100::Parser,
+    last_bell_count: &mut u32,
+    last_title: &mut String,
 ) -> TermScreenDelta {
     let rows = new_screen.rows;
     let cols = new_screen.cols;
@@ -224,6 +247,22 @@ fn compute_delta(
         vt100::MouseProtocolEncoding::Sgr => "sgr",
     };
 
+    // Bell detection: compare audible bell count with last known value
+    let current_bell_count = screen.audible_bell_count() as u32;
+    let bell = current_bell_count > *last_bell_count;
+    *last_bell_count = current_bell_count;
+
+    // Title detection: only emit when changed
+    let current_title = screen.title().to_string();
+    let title = if current_title != *last_title && !current_title.is_empty() {
+        *last_title = current_title.clone();
+        Some(current_title)
+    } else {
+        None
+    };
+
+    let alt_screen = screen.alternate_screen();
+
     TermScreenDelta {
         rows,
         cols,
@@ -234,6 +273,9 @@ fn compute_delta(
         mouse_mode: mouse_mode.to_string(),
         mouse_encoding: mouse_encoding.to_string(),
         bracketed_paste: screen.bracketed_paste(),
+        title,
+        bell,
+        alt_screen,
     }
 }
 
@@ -265,6 +307,7 @@ impl TerminalManager {
         on_screen: impl Fn(String, TermScreenDelta) + Send + Sync + 'static,
         on_sixel: impl Fn(String, term_pro::SixelImage) + Send + Sync + 'static,
         on_pty_error: impl Fn(String, String) + Send + Sync + 'static,
+        on_pty_restart: impl Fn(String, u32) + Send + Sync + 'static,
     ) -> Result<String, String> {
         let pty_system = native_pty_system();
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
@@ -324,6 +367,7 @@ impl TerminalManager {
         let on_screen = Arc::new(on_screen);
         let on_sixel = Arc::new(on_sixel);
         let on_pty_error = Arc::new(on_pty_error);
+        let on_pty_restart = Arc::new(on_pty_restart);
         {
             let p = parser.lock().unwrap_or_else(|e| e.into_inner());
             let screen = extract_screen(&p);
@@ -341,6 +385,9 @@ impl TerminalManager {
                 mouse_mode: "none".to_string(),
                 mouse_encoding: "default".to_string(),
                 bracketed_paste: false,
+                title: None,
+                bell: false,
+                alt_screen: false,
             };
             on_screen(term_id.clone(), initial_delta);
         }
@@ -351,12 +398,15 @@ impl TerminalManager {
         let on_screen_for_reader = on_screen.clone();
         let on_sixel_for_reader = on_sixel.clone();
         let on_pty_error_for_reader = on_pty_error.clone();
+        let on_pty_restart_for_reader = on_pty_restart.clone();
         let monitor_for_reader = monitor.clone();
         let cwd_for_reader = cwd.clone();
         let instance_for_reader = instance.clone();
         thread::spawn(move || {
             let mut buf = [0u8; 4096];
             let mut last_cells: Vec<Vec<TermCell>> = Vec::new();
+            let mut last_bell_count: u32 = 0;
+            let mut last_title = String::new();
             let mut sixel_parser = term_pro::SixelParser::new();
             let mut sixel_buf: Vec<u8> = Vec::new();
             let mut in_sixel = false;
@@ -437,9 +487,15 @@ impl TerminalManager {
 
                                 reader = new_reader;
                                 last_cells.clear();
+                                last_bell_count = 0;
+                                last_title.clear();
                                 eprintln!(
                                     "[terminal] PTY {} respawned (restart #{})",
                                     term_id_for_reader, count
+                                );
+                                on_pty_restart_for_reader(
+                                    term_id_for_reader.clone(),
+                                    count,
                                 );
                                 continue;
                             }
@@ -499,7 +555,7 @@ impl TerminalManager {
                         let mut p = parser_for_reader.lock().unwrap_or_else(|e| e.into_inner());
                         p.process(data);
                         let screen = extract_screen(&p);
-                        let delta = compute_delta(screen, &mut last_cells, &p);
+                        let delta = compute_delta(screen, &mut last_cells, &p, &mut last_bell_count, &mut last_title);
                         drop(p);
                         on_screen_for_reader(term_id_for_reader.clone(), delta);
                     }
