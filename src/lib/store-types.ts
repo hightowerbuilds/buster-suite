@@ -86,4 +86,5 @@ export interface BusterStoreState {
   tabTrapping: boolean;
   lspState: LspState;
   lspLanguages: string[];
+  vimMode: string | null;
 }

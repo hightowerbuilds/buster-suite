@@ -334,6 +334,7 @@ const App: Component = () => {
               errorCount={actions.diagnosticCounts().errors}
               warningCount={actions.diagnosticCounts().warnings}
               onDiagnosticsClick={() => actions.jumpToDiagnostic(1)}
+              vimMode={store.vimMode}
             />
         </div>
       </div>

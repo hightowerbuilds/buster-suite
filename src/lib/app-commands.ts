@@ -167,6 +167,10 @@ export function createAppCommands(deps: CommandDeps): Command[] {
     { id: "view.toggleSidebar", label: "Toggle Sidebar", category: "View", keybinding: "Mod+B", execute: () => deps.setSidebarVisible(v => !v) },
     { id: "git.open", label: "Git", category: "Git", keybinding: "Mod+Shift+G", execute: () => deps.createGitTab() },
     { id: "browser.open", label: "Open Browser", category: "Browser", keybinding: "Mod+Shift+B", execute: () => deps.createBrowserTab() },
+    { id: "editor.toggleVimMode", label: "Toggle Vim Mode", category: "Editor", execute: () => {
+      const s = deps.settings();
+      deps.updateSettings({ ...s, vim_mode: !s.vim_mode });
+    } },
     { id: "editor.nextProblem", label: "Go to Next Problem", category: "Editor", keybinding: "F8", execute: () => deps.jumpToDiagnostic(1) },
     { id: "editor.prevProblem", label: "Go to Previous Problem", category: "Editor", keybinding: "Shift+F8", execute: () => deps.jumpToDiagnostic(-1) },
     { id: "view.focusNextRegion", label: "Focus Next Region", category: "View", keybinding: "F6", execute: () => cycleRegion(1) },

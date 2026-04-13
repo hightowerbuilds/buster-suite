@@ -1,6 +1,6 @@
 import { Component, onMount, onCleanup, createSignal, createEffect } from "solid-js";
 import type { SearchMatch, DiffHunk, GitBlameLine } from "../lib/ipc";
-import { gitBlame } from "../lib/ipc";
+import { gitBlame, evaluateKeymap } from "../lib/ipc";
 import { createEditorEngine, getCharWidth, type EditorEngine } from "./engine";
 import { FONT_FAMILY } from "./text-measure";
 import { requestHighlights, spansToLineTokens, setSyntaxPalette, syntaxOpen, syntaxClose, type LineToken } from "./ts-highlighter";
@@ -61,6 +61,13 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
   // ── Vim mode ──────────────────────────────────────────────────
   const vim = createVimHandler();
   createEffect(() => { vim.setEnabled(store.settings.vim_mode ?? false); });
+  // Load Lua keymap from backend
+  evaluateKeymap().then(json => vim.loadKeymap(json)).catch(e => console.warn("Keymap load failed:", e));
+  // Push mode changes to global store for status bar display
+  createEffect(() => {
+    const m = vim.enabled() ? vim.mode() : null;
+    setStore("vimMode", m);
+  });
 
   const vimDeps = {
     openFind: () => setStore("findVisible", true),
@@ -876,6 +883,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       foldStartLines: new Set(engine.lines().map((_, i) => i).filter(i => engine.isFolded(i))),
       isFoldable: (line: number) => engine.isFoldable(line),
       breakpointLines: breakpointSet(),
+      cursorStyle: vim.enabled() && vim.mode() !== "insert" ? "block" : "line",
     });
   }
 

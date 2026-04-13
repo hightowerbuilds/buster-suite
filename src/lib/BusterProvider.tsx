@@ -54,6 +54,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   effect_cursor_glow: 0,
   effect_vignette: 0,
   effect_grain: 0,
+  vim_mode: false,
 };
 
 const RECENT_FILES_KEY = "buster-recent-files";
@@ -111,6 +112,7 @@ const INITIAL_STATE: BusterStoreState = {
   tabTrapping: true,
   lspState: "inactive",
   lspLanguages: [],
+  vimMode: null,
 };
 
 // ── Provider component ───────────────────────────────────────

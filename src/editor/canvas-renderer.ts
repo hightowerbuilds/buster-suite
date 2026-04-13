@@ -118,6 +118,7 @@ export interface EditorRenderParams {
   foldStartLines: Set<number>;
   isFoldable: (line: number) => boolean;
   breakpointLines: Set<number>;
+  cursorStyle: "line" | "block";
 }
 
 export function renderEditor(canvas: HTMLCanvasElement, params: EditorRenderParams): void {
@@ -616,6 +617,7 @@ function drawCursors(
   if (!params.cursorVisible || !params.hasBuffer) return;
 
   applyCursorGlow(ctx, p);
+  const isBlock = params.cursorStyle === "block";
   for (let ci = 0; ci < params.cursors.length; ci++) {
     const cLine = params.cursors[ci].line;
     const cCol = params.cursors[ci].col;
@@ -625,7 +627,22 @@ function drawCursors(
         const x = gutterW + PADDING_LEFT + colToPixel(dr.text, cCol - dr.startCol, charW);
         const y = (r - firstVisRow) * lineHeight + offsetY;
         ctx.fillStyle = ci === 0 ? p.cursor : p.cursorAlt;
-        ctx.fillRect(x, y + 2, 2, lineHeight - 4);
+        if (isBlock) {
+          ctx.globalAlpha = 0.7;
+          ctx.fillRect(x, y + 1, charW, lineHeight - 2);
+          ctx.globalAlpha = 1;
+          // Redraw char under cursor in background color for contrast
+          const localCol = cCol - dr.startCol;
+          if (localCol < dr.text.length) {
+            const ch = dr.text[localCol];
+            ctx.fillStyle = p.editorBg;
+            ctx.font = `${params.fontSize}px ${FONT_FAMILY}`;
+            ctx.textBaseline = "top";
+            ctx.fillText(ch, x, y);
+          }
+        } else {
+          ctx.fillRect(x, y + 2, 2, lineHeight - 4);
+        }
         break;
       }
     }
