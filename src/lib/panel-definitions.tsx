@@ -19,6 +19,7 @@ import SearchResultsPanel from "../ui/SearchResultsPanel";
 import Sidebar from "../ui/Sidebar";
 import ImageViewer from "../ui/ImageViewer";
 import DisplayListSurface from "../ui/DisplayListSurface";
+import BrowserSurface from "../ui/BrowserSurface";
 
 // ── Terminal ─────────────────────────────────────────────────────────
 
@@ -136,6 +137,23 @@ registerPanel("surface", {
       <DisplayListSurface
         surfaceId={meta.surface_id ?? 0}
         extensionId={meta.extension_id ?? ""}
+        initialWidth={meta.width ?? 800}
+        initialHeight={meta.height ?? 600}
+        label={tab.name}
+        isActive={isActive()}
+      />
+    );
+  },
+});
+
+// ── Built-in Browser ────────────────────────────────────────────────
+
+registerPanel("browser", {
+  render: (tab, isActive) => {
+    const meta = JSON.parse(tab.path || "{}");
+    return (
+      <BrowserSurface
+        surfaceId={meta.surface_id ?? 0}
         initialWidth={meta.width ?? 800}
         initialHeight={meta.height ?? 600}
         label={tab.name}

@@ -26,6 +26,7 @@ function makeDeps(overrides: Partial<CommandDeps> = {}): CommandDeps {
     createTerminalTab: vi.fn(),
     createSettingsTab: vi.fn(),
     createGitTab: vi.fn(),
+    createBrowserTab: vi.fn(),
     setSidebarVisible: vi.fn(),
     setTourActive: vi.fn(),
     jumpToDiagnostic: vi.fn(),

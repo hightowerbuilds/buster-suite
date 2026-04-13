@@ -22,7 +22,7 @@ pub async fn ext_list(
 pub async fn ext_load(
     app: AppHandle,
     state: State<'_, ExtensionManager>,
-    _surfaces: State<'_, crate::extensions::surface::SurfaceManager>,
+    _surfaces: State<'_, Arc<crate::extensions::surface::SurfaceManager>>,
     browser_mgr: State<'_, Arc<BrowserManager>>,
     extension_id: String,
 ) -> Result<ExtensionInfo, String> {
@@ -68,7 +68,7 @@ pub async fn ext_load(
 #[command]
 pub async fn ext_unload(
     state: State<'_, ExtensionManager>,
-    surfaces: State<'_, crate::extensions::surface::SurfaceManager>,
+    surfaces: State<'_, Arc<crate::extensions::surface::SurfaceManager>>,
     extension_id: String,
 ) -> Result<(), String> {
     state.unload(&extension_id, &*surfaces).await?;
@@ -226,7 +226,7 @@ pub async fn ext_install(
 pub async fn ext_uninstall(
     _app: AppHandle,
     state: State<'_, ExtensionManager>,
-    surfaces: State<'_, crate::extensions::surface::SurfaceManager>,
+    surfaces: State<'_, Arc<crate::extensions::surface::SurfaceManager>>,
     extension_id: String,
 ) -> Result<(), String> {
     // Unload if active
@@ -252,7 +252,7 @@ pub async fn ext_uninstall(
 
 #[tauri::command]
 pub fn surface_measure_text_response(
-    surfaces: tauri::State<'_, crate::extensions::surface::SurfaceManager>,
+    surfaces: tauri::State<'_, Arc<crate::extensions::surface::SurfaceManager>>,
     request_id: u64,
     width: f64,
     height: f64,
@@ -276,7 +276,7 @@ pub async fn surface_get_last_paint(
 
 #[tauri::command]
 pub fn surface_resize_notify(
-    surfaces: tauri::State<'_, crate::extensions::surface::SurfaceManager>,
+    surfaces: tauri::State<'_, Arc<crate::extensions::surface::SurfaceManager>>,
     surface_id: u32,
     width: u32,
     height: u32,

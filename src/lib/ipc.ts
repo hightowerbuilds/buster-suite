@@ -497,6 +497,19 @@ export const surfaceGetLastPaint = (surfaceId: number) =>
 export const surfaceResizeNotify = (surfaceId: number, width: number, height: number) =>
   invoke<void>("surface_resize_notify", { surfaceId, width, height });
 
+// ── Built-in Browser Module ──────────────────────────────────────────
+
+export const browserModuleLaunch = () => invoke<string>("browser_module_launch");
+export const browserModuleNavigate = (url: string) => invoke<string>("browser_module_navigate", { url });
+export const browserModuleRefresh = () => invoke<string>("browser_module_refresh");
+export const browserModulePoll = () => invoke<string>("browser_module_poll");
+export const browserModuleOnClick = (x: number, y: number, button: number) => invoke<string>("browser_module_on_click", { x, y, button });
+export const browserModuleOnKey = (key: string, code: string, shift: boolean, ctrl: boolean, alt: boolean) => invoke<string>("browser_module_on_key", { key, code, shift, ctrl, alt });
+export const browserModuleOnResize = (width: number, height: number, absX: number, absY: number) => invoke<string>("browser_module_on_resize", { width, height, absX, absY });
+export const browserModuleOnVisibility = (visible: boolean) => invoke<string>("browser_module_on_visibility", { visible });
+export const browserModuleOnMouseMove = (x: number, y: number, buttons: number) => invoke<string>("browser_module_on_mouse_move", { x, y, buttons });
+export const browserModuleClose = () => invoke<void>("browser_module_close");
+
 // ── Session ─────────────────────────────────────────────────────────
 
 export interface SessionTab {

@@ -368,7 +368,7 @@ impl WasmRuntime {
 /// Link host functions into the WASM linker.
 /// Only capabilities the extension declared get real implementations;
 /// undeclared capabilities get stubs that return errors.
-fn link_host_functions(linker: &mut Linker<ExtensionState>, _caps: &super::manifest::Capabilities) -> Result<()> {
+pub(crate) fn link_host_functions(linker: &mut Linker<ExtensionState>, _caps: &super::manifest::Capabilities) -> Result<()> {
     // --- Logging (always available) ---
     linker.func_wrap("buster", "log", |mut caller: Caller<'_, ExtensionState>, level: i32, ptr: i32, len: i32| {
         if let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) {

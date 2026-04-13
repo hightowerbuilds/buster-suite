@@ -109,6 +109,7 @@ const App: Component = () => {
     createTerminalTab: actions.createTerminalTab,
     createSettingsTab: actions.createSettingsTab,
     createGitTab: actions.createGitTab,
+    createBrowserTab: actions.createBrowserTab,
     setSidebarVisible: (v: boolean | ((prev: boolean) => boolean)) =>
       updateSidebarVisible(v),
     setTourActive: (v: boolean | ((prev: boolean) => boolean)) =>

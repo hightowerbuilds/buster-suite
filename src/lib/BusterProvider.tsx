@@ -24,6 +24,7 @@ import {
   setWorkspaceRootIpc, largeFileOpen, largeFileReadLines,
   largeFileClose, loadSettings as loadSettingsIpc, saveSettings as saveSettingsIpc,
   setTerminalTheme as setTerminalThemeIpc, extUnload,
+  browserModuleLaunch, browserModuleClose,
 } from "./ipc";
 import { CATPPUCCIN, LIGHT_THEME, generatePalette, importVSCodeTheme, applyPaletteToCss, clearCssOverrides, paletteToTerminalColors, type ThemePalette } from "./theme";
 import type { AppSettings } from "./ipc";
@@ -358,6 +359,14 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
   function createExtensionsTab() { openSingletonTab("extensions", "extensions_tab", "Extensions"); }
   function createDebugTab() { openSingletonTab("debug", "debug_tab", "Debug"); }
   function createProblemsTab() { openSingletonTab("problems", "problems_tab", "Problems"); }
+  async function createBrowserTab() {
+    try {
+      await browserModuleLaunch();
+      // Tab creation happens via surface-event listener (intercepts __builtin_browser)
+    } catch (e) {
+      showToast("Failed to launch browser: " + String(e), "error");
+    }
+  }
   function popOutSidebar() {
     setStore("sidebarVisible", false);
     openSingletonTab("explorer", "explorer_tab", "Explorer");
@@ -447,6 +456,11 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     if (!tab) return;
 
     if (tab.type === "explorer") setStore("sidebarVisible", true);
+
+    // Browser tab: close the built-in browser module
+    if (tab.type === "browser") {
+      browserModuleClose().catch(() => {});
+    }
 
     // Surface tabs: unload the extension so it can clean up webviews, surfaces, etc.
     if (tab.type === "surface") {
@@ -705,25 +719,30 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     }
   }).then(u => menuListeners.push(u));
 
-  // Surface events from extensions
+  // Surface events from extensions and built-in browser
   listen<SurfaceEvent>("surface-event", (event) => {
     const { surface_id, kind, extension_id, content } = event.payload;
     if (kind === "created") {
       const meta = JSON.parse(content);
-      const tabId = `surface_${surface_id}`;
+      const isBrowser = extension_id === "__builtin_browser";
+      const tabId = isBrowser ? `browser_${surface_id}` : `surface_${surface_id}`;
       const newTab: Tab = {
         id: tabId,
-        name: meta.label || `Surface ${surface_id}`,
+        name: isBrowser ? "Browser" : (meta.label || `Surface ${surface_id}`),
         path: JSON.stringify({ surface_id, extension_id, width: meta.width, height: meta.height }),
         dirty: false,
-        type: "surface",
+        type: isBrowser ? "browser" : "surface",
       };
       setStore("tabs", [...store.tabs, newTab]);
       switchToTab(tabId);
     } else if (kind === "released") {
-      const tabId = `surface_${surface_id}`;
-      const idx = store.tabs.findIndex((t) => t.id === tabId);
-      if (idx >= 0) {
+      // Check both surface and browser tab IDs
+      const surfaceTabId = `surface_${surface_id}`;
+      const browserTabId = `browser_${surface_id}`;
+      const tabId = store.tabs.find(t => t.id === surfaceTabId) ? surfaceTabId
+                  : store.tabs.find(t => t.id === browserTabId) ? browserTabId
+                  : null;
+      if (tabId) {
         setStore("tabs", store.tabs.filter((t) => t.id !== tabId));
         if (store.activeTabId === tabId) {
           setStore("activeTabId", store.tabs.length > 0 ? store.tabs[0].id : null);
@@ -836,6 +855,7 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     createExtensionsTab,
     createDebugTab,
     createProblemsTab,
+    createBrowserTab,
     popOutSidebar,
     handleTermIdReady,
     handleTermTitleChange,

@@ -72,6 +72,7 @@ export interface CommandDeps {
   createTerminalTab: () => void;
   createSettingsTab: () => void;
   createGitTab: () => void;
+  createBrowserTab: () => void;
   setSidebarVisible: Setter<boolean>;
   setTourActive: Setter<boolean>;
   jumpToDiagnostic: (direction: 1 | -1) => void;
@@ -126,6 +127,7 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   "editor.zoomOut": "Mod+-",
   "editor.zoomReset": "Mod+0",
   "git.open": "Mod+Shift+g",
+  "browser.open": "Mod+Shift+b",
   "editor.nextProblem": "F8",
   "editor.prevProblem": "Shift+F8",
   "view.focusNextRegion": "F6",
@@ -164,6 +166,7 @@ export function createAppCommands(deps: CommandDeps): Command[] {
     { id: "view.settings", label: "Settings", category: "View", keybinding: "Mod+,", execute: () => deps.createSettingsTab() },
     { id: "view.toggleSidebar", label: "Toggle Sidebar", category: "View", keybinding: "Mod+B", execute: () => deps.setSidebarVisible(v => !v) },
     { id: "git.open", label: "Git", category: "Git", keybinding: "Mod+Shift+G", execute: () => deps.createGitTab() },
+    { id: "browser.open", label: "Open Browser", category: "Browser", keybinding: "Mod+Shift+B", execute: () => deps.createBrowserTab() },
     { id: "editor.nextProblem", label: "Go to Next Problem", category: "Editor", keybinding: "F8", execute: () => deps.jumpToDiagnostic(1) },
     { id: "editor.prevProblem", label: "Go to Previous Problem", category: "Editor", keybinding: "Shift+F8", execute: () => deps.jumpToDiagnostic(-1) },
     { id: "view.focusNextRegion", label: "Focus Next Region", category: "View", keybinding: "F6", execute: () => cycleRegion(1) },
@@ -239,6 +242,7 @@ export function buildHotkeyDefinitions(
   add("editor.zoomOut", () => deps.updateSettings({ ...deps.settings(), ui_zoom: Math.max(50, deps.settings().ui_zoom - 10) }));
   add("editor.zoomReset", () => deps.updateSettings({ ...deps.settings(), ui_zoom: 100 }));
   add("git.open", () => deps.createGitTab());
+  add("browser.open", () => deps.createBrowserTab());
   add("editor.nextProblem", () => deps.jumpToDiagnostic(1));
   add("editor.prevProblem", () => deps.jumpToDiagnostic(-1));
   add("view.focusNextRegion", () => cycleRegion(1));

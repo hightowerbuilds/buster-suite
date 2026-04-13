@@ -7,6 +7,7 @@ mod debugger;
 pub mod workspace;
 pub mod watcher;
 mod browser;
+mod browser_module;
 pub mod filebuffer;
 
 use terminal::TerminalManager;
@@ -30,11 +31,12 @@ pub fn run() {
         .manage(SyntaxService::new())
         .manage(LspManager::new())
         .manage(extensions::ExtensionManager::new())
-        .manage(extensions::surface::SurfaceManager::new())
+        .manage(Arc::new(extensions::surface::SurfaceManager::new()))
         .manage(watcher::FileWatcher::new())
         .manage(Arc::new(BrowserManager::new()))
         .manage(filebuffer::FileBufferManager::new())
         .manage(DebugManager::new())
+        .manage(tokio::sync::Mutex::new(Option::<browser_module::BrowserModule>::None))
         .setup(|app| {
             // Build the native menu bar
             let change_dir = MenuItem::with_id(app, "change_directory", "Change Directory", true, None::<&str>)?;
@@ -205,7 +207,7 @@ pub fn run() {
             // Wire surface event sink
             {
                 let surface_handle = app.handle().clone();
-                let sm = app.state::<extensions::surface::SurfaceManager>();
+                let sm = app.state::<Arc<extensions::surface::SurfaceManager>>();
                 sm.set_event_sink(Arc::new(move |event| {
                     let _ = surface_handle.emit("surface-event", &event);
                 }));
@@ -337,6 +339,17 @@ pub fn run() {
             commands::browser::hide_all_browser_views,
             commands::browser::show_all_browser_views,
             commands::browser::scan_local_ports,
+            // Built-in Browser Module
+            commands::browser_module::browser_module_launch,
+            commands::browser_module::browser_module_navigate,
+            commands::browser_module::browser_module_refresh,
+            commands::browser_module::browser_module_poll,
+            commands::browser_module::browser_module_on_click,
+            commands::browser_module::browser_module_on_key,
+            commands::browser_module::browser_module_on_resize,
+            commands::browser_module::browser_module_on_visibility,
+            commands::browser_module::browser_module_on_mouse_move,
+            commands::browser_module::browser_module_close,
             // Session
             commands::session::save_session,
             commands::session::load_session,
