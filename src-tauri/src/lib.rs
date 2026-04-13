@@ -74,6 +74,7 @@ pub fn run() {
             // which inject text via simulated Cmd+V through the macOS responder chain.
             // PredefinedMenuItems route through the native NSResponder paste: selector,
             // while custom MenuItems with accelerators only intercept the key combo from real keyboard events.
+            let select_all = MenuItem::with_id(app, "select_all", "Select All", true, Some("CmdOrCtrl+A"))?;
             let edit_menu = Submenu::with_items(app, "Edit", true, &[
                 &PredefinedMenuItem::undo(app, Some("Undo"))?,
                 &PredefinedMenuItem::redo(app, Some("Redo"))?,
@@ -81,7 +82,7 @@ pub fn run() {
                 &PredefinedMenuItem::cut(app, Some("Cut"))?,
                 &PredefinedMenuItem::copy(app, Some("Copy"))?,
                 &PredefinedMenuItem::paste(app, Some("Paste"))?,
-                &PredefinedMenuItem::select_all(app, Some("Select All"))?,
+                &select_all,
             ])?;
 
             let view_menu = Submenu::with_items(
