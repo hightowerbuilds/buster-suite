@@ -45,6 +45,8 @@ pub struct AppSettings {
     pub agent_timeout_secs: u32,
     #[serde(default)]
     pub vim_mode: bool,
+    #[serde(default = "default_blog_theme")]
+    pub blog_theme: String,
 }
 
 fn default_theme_mode() -> String { "dark".to_string() }
@@ -53,6 +55,7 @@ fn default_agent_tool_calls() -> u32 { 50 }
 fn default_agent_writes() -> u32 { 10 }
 fn default_agent_commands() -> u32 { 5 }
 fn default_agent_timeout() -> u32 { 300 }
+fn default_blog_theme() -> String { "normal".to_string() }
 
 impl Default for AppSettings {
     fn default() -> Self {
@@ -77,6 +80,7 @@ impl Default for AppSettings {
             agent_max_commands: 5,
             agent_timeout_secs: 300,
             vim_mode: false,
+            blog_theme: "normal".to_string(),
         }
     }
 }

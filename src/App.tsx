@@ -85,6 +85,16 @@ const App: Component = () => {
     closeCommandLine();
   }
 
+  function handleCommandLineGit() {
+    actions.createGitTab();
+    closeCommandLine();
+  }
+
+  function handleCommandLineBrowser() {
+    actions.createBrowserTab();
+    closeCommandLine();
+  }
+
   function handleCommandLineSettings() {
     actions.createSettingsTab();
     closeCommandLine();
@@ -341,7 +351,7 @@ const App: Component = () => {
       <CanvasDockBar
         currentLayout={store.panelCount}
         onLayoutChange={(count) => applyPanelCount(count)}
-        onGit={actions.createGitTab}
+        onQuickPanel={openCommandLine}
       />
       <CommandLineSwitchboard
         visible={commandLineVisible()}
@@ -349,6 +359,8 @@ const App: Component = () => {
         onSelect={handleCommandLineLayout}
         onOpenExtensions={handleCommandLineExtensions}
         onOpenDebug={handleCommandLineDebug}
+        onOpenGit={handleCommandLineGit}
+        onOpenBrowser={handleCommandLineBrowser}
         onOpenSettings={handleCommandLineSettings}
       />
       <CommandPalette

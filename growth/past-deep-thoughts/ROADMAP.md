@@ -146,7 +146,6 @@ The app currently runs unit tests only. The missing test layer is workflow cover
 
 These stay in the app but stop being presented as equal pillars:
 
-- **GitHub dashboard** — local git is core; GitHub browsing is adjacent
 - **Extensions tab** — ecosystem strategy, not the product wedge yet
 - **Debugger** — experimental until buster-dap is integrated
 - **Manual tab** — support material, not a dock destination

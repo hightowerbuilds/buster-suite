@@ -81,6 +81,7 @@ export interface AppSettings {
   effect_grain: number;
   keybindings?: Record<string, string>;
   vim_mode: boolean;
+  blog_theme: string;
 }
 
 export const loadSettings = () =>

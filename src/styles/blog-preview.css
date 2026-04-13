@@ -1,4 +1,9 @@
-/* Blog Mode — markdown preview */
+/* Blog Mode — markdown preview
+ *
+ * Purely structural stylesheet. Every visual value comes from
+ * var(--blog-*) custom properties set inline by the token resolver.
+ * No theme-variant classes, no hardcoded colors.
+ */
 
 .blog-mode-toggle {
   position: absolute;
@@ -27,27 +32,28 @@
   border-color: var(--accent);
 }
 
-/* Preview container */
+/* ── Preview container ────────────────────────────────────── */
 
 .blog-preview {
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  padding: 40px 48px;
   box-sizing: border-box;
+  max-width: 100%;
+
+  padding: var(--blog-container-padding);
   background: var(--blog-bg);
   color: var(--blog-text);
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--blog-font-family);
   font-weight: normal;
-  line-height: 1.75;
-  max-width: 100%;
+  line-height: var(--blog-line-height);
 }
 
 .blog-preview > *:first-child {
   margin-top: 0;
 }
 
-/* Headings — no bold, use size + accent color to differentiate */
+/* ── Headings ─────────────────────────────────────────────── */
 
 .blog-preview h1,
 .blog-preview h2,
@@ -55,35 +61,73 @@
 .blog-preview h4,
 .blog-preview h5,
 .blog-preview h6 {
+  font-family: var(--blog-heading-font-family);
   font-weight: normal;
   color: var(--blog-text);
   margin: 1.5em 0 0.5em;
   line-height: 1.3;
 }
 
-.blog-preview h1 { font-size: 2em; color: var(--blog-accent); }
-.blog-preview h2 { font-size: 1.6em; color: var(--blog-accent); }
-.blog-preview h3 { font-size: 1.3em; }
-.blog-preview h4 { font-size: 1.1em; }
+.blog-preview h1 {
+  font-family: var(--blog-h1-font-family);
+  font-size: var(--blog-h1-font-size);
+  letter-spacing: var(--blog-h1-letter-spacing);
+  border-bottom: var(--blog-h1-border-bottom);
+  padding-bottom: var(--blog-h1-padding-bottom);
+  color: var(--blog-h1-color);
+}
 
-/* Paragraphs */
+.blog-preview h2 {
+  font-size: var(--blog-h2-font-size);
+  border-bottom: var(--blog-h2-border-bottom);
+  padding-bottom: var(--blog-h2-padding-bottom);
+  color: var(--blog-h2-color);
+}
+
+.blog-preview h3 {
+  font-size: var(--blog-h3-font-size);
+  font-style: var(--blog-h3-font-style);
+}
+
+.blog-preview h4 {
+  font-size: var(--blog-h4-font-size);
+  text-transform: var(--blog-h4-text-transform);
+  letter-spacing: var(--blog-h4-letter-spacing);
+  font-family: var(--blog-h4-font-family);
+}
+
+/* ── Paragraphs ───────────────────────────────────────────── */
 
 .blog-preview p {
   margin: 0.75em 0;
+  text-align: var(--blog-p-text-align);
+  hyphens: var(--blog-p-hyphens);
 }
 
-/* Links */
+/* Drop cap — controlled by token (display: none disables the float) */
+.blog-preview h1 + p::first-letter,
+.blog-preview h2 + p::first-letter {
+  font-size: var(--blog-drop-cap-font-size);
+  float: left;
+  line-height: 0.8;
+  margin: 0.05em 0.1em 0 0;
+  color: var(--blog-drop-cap-color);
+}
+
+/* ── Links ────────────────────────────────────────────────── */
 
 .blog-preview a {
   color: var(--blog-accent);
-  text-decoration: none;
+  text-decoration: var(--blog-link-decoration);
+  text-decoration-thickness: var(--blog-link-decoration-thickness);
+  text-underline-offset: var(--blog-link-underline-offset);
 }
 
 .blog-preview a:hover {
   text-decoration: underline;
 }
 
-/* Lists */
+/* ── Lists ────────────────────────────────────────────────── */
 
 .blog-preview ul,
 .blog-preview ol {
@@ -95,36 +139,42 @@
   margin: 0.25em 0;
 }
 
-/* Blockquotes */
+/* ── Blockquotes ──────────────────────────────────────────── */
 
 .blog-preview blockquote {
   margin: 1em 0;
   padding: 0.5em 1em;
-  border-left: 3px solid var(--blog-accent);
-  color: var(--blog-text-dim);
-  background: var(--blog-surface);
+  border-left: var(--blog-bq-border-left);
+  border-top: var(--blog-bq-border-top);
+  border-bottom: var(--blog-bq-border-bottom);
+  color: var(--blog-bq-text-color);
+  background: var(--blog-bq-bg);
+  font-style: var(--blog-bq-font-style);
+  font-size: var(--blog-bq-font-size);
 }
 
 .blog-preview blockquote p {
   margin: 0.25em 0;
 }
 
-/* Code */
+/* ── Code ─────────────────────────────────────────────────── */
 
 .blog-preview code {
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--blog-code-font-family);
   font-weight: normal;
   font-size: 0.9em;
   padding: 0.15em 0.4em;
   background: var(--blog-code-bg);
-  border-radius: 3px;
+  border-radius: var(--blog-code-radius);
+  color: var(--blog-text);
 }
 
 .blog-preview pre {
   margin: 1em 0;
   padding: 1em;
   background: var(--blog-code-bg);
-  border-radius: 4px;
+  border-radius: var(--blog-pre-radius);
+  border: var(--blog-pre-border);
   overflow-x: auto;
 }
 
@@ -135,23 +185,25 @@
   line-height: 1.5;
 }
 
-/* Horizontal rules */
+/* ── Horizontal rules ─────────────────────────────────────── */
 
 .blog-preview hr {
   border: none;
   border-top: 1px solid var(--blog-border);
-  margin: 2em 0;
+  margin: var(--blog-hr-margin);
+  width: var(--blog-hr-width);
 }
 
-/* Images */
+/* ── Images ───────────────────────────────────────────────── */
 
 .blog-preview img {
   max-width: 100%;
-  border-radius: 4px;
+  border-radius: var(--blog-img-radius);
+  border: var(--blog-img-border);
   margin: 1em 0;
 }
 
-/* Tables */
+/* ── Tables ───────────────────────────────────────────────── */
 
 .blog-preview table {
   width: 100%;
@@ -162,21 +214,27 @@
 .blog-preview th,
 .blog-preview td {
   padding: 0.5em 0.75em;
-  border: 1px solid var(--blog-border);
+  border-bottom: 1px solid var(--blog-border);
   text-align: left;
   font-weight: normal;
 }
 
 .blog-preview th {
-  background: var(--blog-surface);
-  color: var(--blog-text-dim);
+  background: var(--blog-th-bg);
+  color: var(--blog-th-color);
+  text-transform: var(--blog-th-text-transform);
+  letter-spacing: var(--blog-th-letter-spacing);
+  font-family: var(--blog-th-font-family);
+  font-size: var(--blog-th-font-size);
+  border-bottom: var(--blog-th-border-bottom);
 }
 
-/* Strong/em — since no bold allowed, use color instead */
+/* ── Strong / Em ──────────────────────────────────────────── */
 
 .blog-preview strong {
   font-weight: normal;
-  color: var(--blog-accent);
+  font-style: var(--blog-strong-font-style);
+  color: var(--blog-strong-color);
 }
 
 .blog-preview em {

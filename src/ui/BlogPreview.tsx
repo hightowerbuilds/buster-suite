@@ -1,10 +1,12 @@
 import { Component, createMemo } from "solid-js";
 import { marked } from "marked";
 import { useBuster } from "../lib/buster-context";
+import { resolveBlogTokens } from "../lib/blog-themes";
 
 interface BlogPreviewProps {
   text: string;
   fontSize: number;
+  theme?: string;
 }
 
 const BlogPreview: Component<BlogPreviewProps> = (props) => {
@@ -17,25 +19,17 @@ const BlogPreview: Component<BlogPreviewProps> = (props) => {
     }
   });
 
-  const style = createMemo(() => {
-    const p = store.palette;
-    return {
-      "--blog-text": p.text,
-      "--blog-text-dim": p.textDim,
-      "--blog-text-muted": p.textMuted,
-      "--blog-bg": p.editorBg,
-      "--blog-surface": p.surface0,
-      "--blog-border": p.border,
-      "--blog-accent": p.accent,
-      "--blog-code-bg": p.surface1,
-    } as Record<string, string>;
+  const vars = createMemo(() => {
+    const blogTheme = props.theme || "normal";
+    const themeMode = store.settings.theme_mode || "dark";
+    return resolveBlogTokens(blogTheme, themeMode, store.palette);
   });
 
   return (
     <div
       class="blog-preview"
       style={{
-        ...style(),
+        ...vars(),
         "font-size": `${props.fontSize}px`,
       }}
       innerHTML={html()}

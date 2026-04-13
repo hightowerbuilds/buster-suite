@@ -157,6 +157,7 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
           <BlogPreview
             text={deps.engineMap.get(tab.id)?.getText() ?? initialText}
             fontSize={deps.settings().font_size}
+            theme={deps.settings().blog_theme}
           />
         </Show>
       </div>

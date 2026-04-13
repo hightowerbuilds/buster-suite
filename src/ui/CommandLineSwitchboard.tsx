@@ -9,6 +9,8 @@ interface CommandLineSwitchboardProps {
   onOpenExtensions: () => void;
   onOpenDebug: () => void;
   onOpenSettings: () => void;
+  onOpenGit: () => void;
+  onOpenBrowser: () => void;
 }
 
 type CommandOption =
@@ -37,6 +39,18 @@ type CommandOption =
       description: string;
       action: "settings";
     }
+  | {
+      key: string;
+      label: string;
+      description: string;
+      action: "git";
+    }
+  | {
+      key: string;
+      label: string;
+      description: string;
+      action: "browser";
+    }
 const COMMAND_OPTIONS: CommandOption[] = [
   ...PRIMARY_LAYOUT_OPTIONS.map((layout) => ({
     key: layout.label.slice(1),
@@ -56,6 +70,18 @@ const COMMAND_OPTIONS: CommandOption[] = [
     label: "dbg",
     description: "Debugger",
     action: "debug" as const,
+  },
+  {
+    key: "g",
+    label: "git",
+    description: "Git",
+    action: "git" as const,
+  },
+  {
+    key: "b",
+    label: "brw",
+    description: "Browser",
+    action: "browser" as const,
   },
   {
     key: "s",
@@ -106,7 +132,7 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
   }
 
   function handleInput(e: InputEvent & { currentTarget: HTMLInputElement; target: Element }) {
-    const key = e.currentTarget.value.toLowerCase().replace(/[^1-6eds]/g, "").slice(-1);
+    const key = e.currentTarget.value.toLowerCase().replace(/[^1-6edgbs]/g, "").slice(-1);
     e.currentTarget.value = key;
     if (!key) return;
 
@@ -116,6 +142,8 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
     if (option.action === "layout") props.onSelect(option.count);
     else if (option.action === "extensions") props.onOpenExtensions();
     else if (option.action === "debug") props.onOpenDebug();
+    else if (option.action === "git") props.onOpenGit();
+    else if (option.action === "browser") props.onOpenBrowser();
     else if (option.action === "settings") props.onOpenSettings();
   }
 
@@ -138,12 +166,12 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
               autocapitalize="off"
               spellcheck={false}
               aria-label="Command line input"
-              placeholder="1-6 / E / D / S"
+              placeholder="1-6 / E / D / G / B / S"
               onKeyDown={handleKeyDown}
               onInput={handleInput}
             />
           </div>
-          <div class="command-line-caption">Press 1-6 for panel layouts, E for Extensions, D for Debug, or S for Settings.</div>
+          <div class="command-line-caption">Press 1-6 for panel layouts, E for Extensions, D for Debug, G for Git, B for Browser, or S for Settings.</div>
           <div class="command-line-options" role="list">
             <For each={COMMAND_OPTIONS}>
               {(option) => (

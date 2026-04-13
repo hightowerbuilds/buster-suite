@@ -55,6 +55,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   effect_vignette: 0,
   effect_grain: 0,
   vim_mode: false,
+  blog_theme: "normal",
 };
 
 const RECENT_FILES_KEY = "buster-recent-files";

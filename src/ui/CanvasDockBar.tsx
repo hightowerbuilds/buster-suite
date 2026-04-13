@@ -2,7 +2,7 @@
  * CanvasDockBar — canvas-rendered dock bar.
  *
  * Replaces the DOM dock bar + LayoutPicker with a single canvas.
- * Contains: Git button (left), layout preview thumbnails (right).
+ * Contains: quick-panel button (left), layout preview thumbnails (right).
  * Layout thumbnails show a static-noise hover effect via requestAnimationFrame.
  */
 
@@ -18,7 +18,7 @@ import type { ThemePalette } from "../lib/theme";
 interface CanvasDockBarProps {
   currentLayout: PanelCount;
   onLayoutChange: (count: PanelCount) => void;
-  onGit: () => void;
+  onQuickPanel: () => void;
 }
 
 // ── Constants ────────────────────────────────────────────────────────
@@ -86,38 +86,35 @@ const CanvasDockBar: Component<CanvasDockBarProps> = (props) => {
     ctx.fillStyle = palette.surface0;
     ctx.fillRect(0, 0, w, 1);
 
-    // ── Git button (left) ────────────────────────────────────────────
+    // ── Quick-panel button (left) ────────────────────────────────────
     ctx.font = `13px ${CHROME_FONT}`;
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
 
-    const gitText = "Git";
-    const gitW = ctx.measureText(gitText).width + BTN_PAD * 2;
-    const gitH = 26;
-    const gitX = 4;
-    const gitY = (h - gitH) / 2;
-    const gitHovered = hovered === "git";
+    const qpText = "~~~";
+    const qpW = ctx.measureText(qpText).width + BTN_PAD * 2;
+    const qpH = 26;
+    const qpX = 4;
+    const qpY = (h - qpH) / 2;
+    const qpHovered = hovered === "quick-panel";
 
-    // Button background
-    ctx.fillStyle = gitHovered ? palette.surface0 : "transparent";
+    ctx.fillStyle = qpHovered ? palette.surface0 : "transparent";
     ctx.beginPath();
-    ctx.roundRect(gitX, gitY, gitW, gitH, 3);
+    ctx.roundRect(qpX, qpY, qpW, qpH, 3);
     ctx.fill();
-    // Button border
-    ctx.strokeStyle = gitHovered ? palette.border : palette.surface0;
+    ctx.strokeStyle = qpHovered ? palette.border : palette.surface0;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(gitX, gitY, gitW, gitH, 3);
+    ctx.roundRect(qpX, qpY, qpW, qpH, 3);
     ctx.stroke();
-    // Button text
-    ctx.fillStyle = gitHovered ? palette.text : palette.textDim;
-    ctx.fillText(gitText, gitX + BTN_PAD, h / 2);
+    ctx.fillStyle = qpHovered ? palette.text : palette.textDim;
+    ctx.fillText(qpText, qpX + BTN_PAD, h / 2);
 
     regions.push({
-      id: "git",
-      x: gitX, y: gitY, w: gitW, h: gitH,
+      id: "quick-panel",
+      x: qpX, y: qpY, w: qpW, h: qpH,
       cursor: "pointer",
-      onClick: () => props.onGit(),
+      onClick: () => props.onQuickPanel(),
     });
 
     // ── Layout buttons (right) ───────────────────────────────────────

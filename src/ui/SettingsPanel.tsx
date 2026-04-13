@@ -3,6 +3,7 @@ import type { AppSettings } from "../lib/ipc";
 import { useBuster } from "../lib/buster-context";
 import { DEFAULT_KEYBINDINGS } from "../lib/app-commands";
 import { importVSCodeTheme, type ThemeEffects } from "../lib/theme";
+import { BLOG_THEMES } from "../lib/blog-themes";
 
 interface SettingsPanelProps {
   settings: AppSettings;
@@ -16,6 +17,7 @@ type SettingsItem =
   | { id: string; type: "number"; key: keyof AppSettings; label: string; description: string; min: number; max: number; step: number }
   | { id: string; type: "theme" }
   | { id: string; type: "effect"; key: keyof AppSettings; label: string; description: string }
+  | { id: string; type: "blog_theme" }
 ;
 
 // Color/visual settings first, then text/editor settings, then agent settings
@@ -26,6 +28,7 @@ const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "effect_vignette", type: "effect", key: "effect_vignette", label: "Vignette", description: "Darken the edges of the editor" },
   { id: "effect_grain", type: "effect", key: "effect_grain", label: "Film Grain", description: "Subtle noise texture overlay" },
   { id: "minimap", type: "toggle", key: "minimap", label: "Minimap", description: "Show a minimap preview of the file" },
+  { id: "blog_theme", type: "blog_theme" },
   // Text & Editor
   { id: "font_size", type: "number", key: "font_size", label: "Editor Font Size", description: "Font size for the code editor and terminal", min: 10, max: 32, step: 1 },
   { id: "tab_size", type: "number", key: "tab_size", label: "Tab Size", description: "Number of spaces per tab stop", min: 1, max: 8, step: 1 },
@@ -271,6 +274,27 @@ const SettingsPanel: Component<SettingsPanelProps> = (props) => {
                 onInput={(e) => update(item.key, parseInt(e.currentTarget.value))}
               />
               <span class="settings-hue-value">{val() > 0 ? `${val()}%` : "off"}</span>
+            </div>
+          </div>
+        );
+      }
+      case "blog_theme": {
+        const current = () => props.settings.blog_theme || "normal";
+        return (
+          <div class="settings-row-content">
+            <div class="settings-info">
+              <span class="settings-label">Blog Mode Theme</span>
+              <span class="settings-desc">Visual style when previewing markdown files</span>
+            </div>
+            <div class="settings-theme-btns">
+              <For each={[...BLOG_THEMES]}>
+                {(t) => (
+                  <button
+                    class={`settings-theme-btn ${current() === t.id ? "settings-theme-btn-active" : ""}`}
+                    onClick={() => update("blog_theme", t.id)}
+                  >{t.label}</button>
+                )}
+              </For>
             </div>
           </div>
         );
