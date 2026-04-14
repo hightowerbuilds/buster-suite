@@ -15,11 +15,12 @@ import { createInlayHints } from "./editor-inlay-hints";
 import { createEditorA11y } from "./editor-a11y";
 import { createVimHandler } from "./vim-mode";
 import CanvasSurface from "../ui/CanvasSurface";
-import { clipboardWrite } from "../lib/clipboard";
+import { clipboardWrite, clipboardRead } from "../lib/clipboard";
 import { basename, extname } from "buster-path";
 import { lspDidChange, lspDidChangeIncremental } from "../lib/ipc";
 import { useBuster } from "../lib/buster-context";
 import { showError } from "../lib/notify";
+import ContextMenu, { type ContextMenuState } from "../ui/ContextMenu";
 
 // ─── Props ──────────────────────────────────────────────────────────
 
@@ -1006,6 +1007,32 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     });
   });
 
+  // ── Context menu ─────────────────────────────────────────────────
+
+  const [editorCtxMenu, setEditorCtxMenu] = createSignal<ContextMenuState | null>(null);
+
+  function handleEditorContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    const hasSel = !!engine.getOrderedSelection();
+    setEditorCtxMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        { label: "Cut", action: () => {
+          const sel = engine.getOrderedSelection();
+          if (sel) { clipboardWrite(engine.getTextRange(sel.from, sel.to)); engine.deleteRange(sel.from, sel.to); }
+        }, disabled: !hasSel },
+        { label: "Copy", action: () => {
+          const sel = engine.getOrderedSelection();
+          if (sel) clipboardWrite(engine.getTextRange(sel.from, sel.to));
+        }, disabled: !hasSel },
+        { label: "Paste", action: () => { clipboardRead().then(t => { if (t) engine.insert(t); }); } },
+        { separator: true },
+        { label: "Select All", action: () => engine.selectAll() },
+      ],
+    });
+  }
+
   // ── JSX ─────────────────────────────────────────────────────────
 
   return (
@@ -1017,6 +1044,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       onMouseUp={handleMouseUp}
       onWheel={handleScroll}
       onClick={focusInput}
+      onContextMenu={handleEditorContextMenu}
       canvasRef={(el) => { canvasRef = el; }}
       inputRef={(el) => { hiddenInput = el; }}
       a11y={<a11y.ParallelDOM />}
@@ -1064,7 +1092,9 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
         tabIndex: 0,
         "data-tab-focus-target": "true",
       }}
-    />
+    >
+      <ContextMenu menu={editorCtxMenu()} onClose={() => setEditorCtxMenu(null)} />
+    </CanvasSurface>
   );
 };
 

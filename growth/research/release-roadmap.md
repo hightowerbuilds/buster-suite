@@ -47,12 +47,12 @@
 - [x] Show invalid regex feedback (currently silent)
 
 ## 5. Context Menus
-- [ ] Build a reusable canvas-rendered context menu component
-- [ ] Editor: right-click menu (cut, copy, paste, select all, go to definition)
-- [ ] File tree: right-click menu (new file, new folder, rename, delete, copy path)
-- [ ] Tab bar: right-click menu (close, close others, close all, copy path)
-- [ ] Terminal: right-click menu (copy, paste, clear, search)
-- [ ] Git panel: right-click menu (stage, unstage, discard, diff)
+- [x] Build a reusable canvas-rendered context menu component
+- [x] Editor: right-click menu (cut, copy, paste, select all, go to definition)
+- [x] File tree: right-click menu (new file, new folder, rename, delete, copy path)
+- [x] Tab bar: right-click menu (close, close others, close all, copy path)
+- [x] Terminal: right-click menu (copy, paste, clear, search)
+- [x] Git panel: right-click menu (stage, unstage, discard, diff)
 
 ## 6. Security Fixes
 - [ ] Upgrade `@chenglou/pretext` from 0.0.4 to 0.0.5 (DoS fix)

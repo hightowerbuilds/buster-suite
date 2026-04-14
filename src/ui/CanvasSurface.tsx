@@ -13,7 +13,9 @@ interface CanvasSurfaceProps {
   onMouseMove?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onMouseUp?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   onWheel?: JSX.EventHandlerUnion<HTMLDivElement, WheelEvent>;
+  onContextMenu?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
   textareaProps?: JSX.TextareaHTMLAttributes<HTMLTextAreaElement>;
+  children?: JSX.Element;
 }
 
 const HIDDEN_TEXTAREA_STYLE: JSX.CSSProperties = {
@@ -49,6 +51,7 @@ const CanvasSurface: Component<CanvasSurfaceProps> = (props) => {
       onMouseMove={props.onMouseMove}
       onMouseUp={props.onMouseUp}
       onWheel={props.onWheel}
+      onContextMenu={props.onContextMenu}
     >
       <canvas
         ref={props.canvasRef}
@@ -61,6 +64,7 @@ const CanvasSurface: Component<CanvasSurfaceProps> = (props) => {
         ref={props.inputRef}
         style={textareaStyle}
       />
+      {props.children}
     </div>
   );
 };

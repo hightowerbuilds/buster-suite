@@ -3,6 +3,7 @@ import { gitStatus, gitStage, gitUnstage, gitCommit, gitCommitAmend, gitPush, gi
 import type { GitStatusResult, GitRemote } from "../lib/ipc";
 import DiffView from "./DiffView";
 import { showError, showSuccess } from "../lib/notify";
+import ContextMenu, { type ContextMenuState } from "./ContextMenu";
 
 interface GitPanelProps {
   workspaceRoot: string | null;
@@ -32,6 +33,7 @@ const GitPanel: Component<GitPanelProps> = (props) => {
   const [stashes, setStashes] = createSignal<GitStashEntry[]>([]);
   const [syncing, setSyncing] = createSignal(false);
   const [diffFile, setDiffFile] = createSignal<{ path: string; staged: boolean } | null>(null);
+  const [gitCtxMenu, setGitCtxMenu] = createSignal<ContextMenuState | null>(null);
   const [remotes, setRemotes] = createSignal<GitRemote[]>([]);
   const [addingRemote, setAddingRemote] = createSignal(false);
   const [newRemoteName, setNewRemoteName] = createSignal("");
@@ -307,7 +309,15 @@ const GitPanel: Component<GitPanelProps> = (props) => {
         <div class="git-section-header">Staged</div>
         <For each={stagedFiles()}>
           {(file) => (
-            <div class="git-file-row">
+            <div class="git-file-row" onContextMenu={(e) => {
+              e.preventDefault();
+              setGitCtxMenu({ x: e.clientX, y: e.clientY, items: [
+                { label: "Unstage", action: () => handleUnstage(file.path) },
+                { label: "View Diff", action: () => setDiffFile({ path: file.path, staged: true }) },
+                { separator: true },
+                { label: "Copy Path", action: () => navigator.clipboard.writeText(file.path) },
+              ]});
+            }}>
               <span class="git-file-status" style={{ color: STATUS_COLORS[file.status] || "#cdd6f4" }}>
                 {file.status}
               </span>
@@ -328,7 +338,16 @@ const GitPanel: Component<GitPanelProps> = (props) => {
         <div class="git-section-header">Changes</div>
         <For each={unstagedFiles()}>
           {(file) => (
-            <div class="git-file-row">
+            <div class="git-file-row" onContextMenu={(e) => {
+              e.preventDefault();
+              setGitCtxMenu({ x: e.clientX, y: e.clientY, items: [
+                { label: file.status === "??" ? "Track" : "Stage", action: () => handleStage(file.path) },
+                { label: "View Diff", action: () => setDiffFile({ path: file.path, staged: false }) },
+                { separator: true },
+                { label: "Open File", action: () => props.onFileSelect?.(file.path) },
+                { label: "Copy Path", action: () => navigator.clipboard.writeText(file.path) },
+              ]});
+            }}>
               <span class="git-file-status" style={{ color: STATUS_COLORS[file.status] || "#cdd6f4" }}>
                 {file.status}
               </span>
@@ -428,6 +447,7 @@ const GitPanel: Component<GitPanelProps> = (props) => {
           onClose={() => setDiffFile(null)}
         />
       </Show>
+      <ContextMenu menu={gitCtxMenu()} onClose={() => setGitCtxMenu(null)} />
     </div>
   );
 };

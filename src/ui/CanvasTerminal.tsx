@@ -1,4 +1,4 @@
-import { Component, createEffect, on, onMount, onCleanup } from "solid-js";
+import { Component, createEffect, on, onMount, onCleanup, createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import CanvasSurface from "./CanvasSurface";
@@ -6,6 +6,7 @@ import { useBuster } from "../lib/buster-context";
 import { FONT_FAMILY, getCharWidth, measureTextWidth } from "../editor/text-measure";
 import { showToast } from "./CanvasToasts";
 import { showError } from "../lib/notify";
+import ContextMenu, { type ContextMenuState } from "./ContextMenu";
 
 interface TermCell {
   ch: string;
@@ -880,10 +881,38 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     runTermSearch(searchQuery);
   }
 
+  // ── Context menu ─────────────────────────────────────────────────
+  const [termCtxMenu, setTermCtxMenu] = createSignal<ContextMenuState | null>(null);
+
+  function handleTermContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    const hasSel = !!getSelectedText();
+    setTermCtxMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        { label: "Copy", action: () => {
+          const t = getSelectedText();
+          if (t) navigator.clipboard.writeText(t).catch(() => {});
+        }, disabled: !hasSel },
+        { label: "Paste", action: () => {
+          navigator.clipboard.readText().then(t => {
+            if (t && ptyId) invoke("terminal_write", { termId: ptyId, data: t }).catch(() => {});
+          }).catch(() => {});
+        }},
+        { separator: true },
+        { label: "Clear", action: () => {
+          if (ptyId) invoke("terminal_write", { termId: ptyId, data: "\x0c" }).catch(() => {});
+        }},
+      ],
+    });
+  }
+
   return (
     <CanvasSurface
       containerRef={(el) => { containerRef = el; }}
       class="canvas-terminal"
+      onContextMenu={handleTermContextMenu}
       searchOverlay={searchVisible ? (
         <div class="term-search-bar" style={{
           position: "absolute", top: "4px", right: "8px", "z-index": "10",
@@ -956,7 +985,9 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
         tabIndex: 0,
         "data-tab-focus-target": "true",
       }}
-    />
+    >
+      <ContextMenu menu={termCtxMenu()} onClose={() => setTermCtxMenu(null)} />
+    </CanvasSurface>
   );
 };
 

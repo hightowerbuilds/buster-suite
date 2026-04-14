@@ -11,6 +11,7 @@ import CanvasChrome, { CHROME_FONT, CHROME_MONO, type HitRegion, type PaintFn } 
 import { useBuster } from "../lib/buster-context";
 import type { Tab } from "../lib/tab-types";
 import type { ThemePalette } from "../lib/theme";
+import ContextMenu, { type ContextMenuState } from "./ContextMenu";
 
 // ── Props ──────────────────────────────────��─────────────────────────
 
@@ -59,6 +60,7 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
   const [dropIdx, setDropIdx] = createSignal<number | null>(null);
   const [ghostStyle, setGhostStyle] = createSignal<{ left: number; top: number; name: string } | null>(null);
   const [editingTab, setEditingTab] = createSignal<{ id: string; x: number; w: number } | null>(null);
+  const [ctxMenu, setCtxMenu] = createSignal<ContextMenuState | null>(null);
 
   // Cached tab geometry for drag drop-target detection and inline rename positioning
   let tabRects: Array<{ x: number; w: number; nameX: number; nameW: number }> = [];
@@ -351,6 +353,44 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
     }
   }
 
+  // ── Context menu ───────────────────────────────────────────────────
+
+  function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    // Find which tab was right-clicked using cached rects
+    const scroll = scrollX();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    for (let i = 0; i < tabRects.length; i++) {
+      const r = tabRects[i];
+      const screenX = r.x - scroll;
+      if (cx >= screenX && cx <= screenX + r.w) {
+        const tab = props.tabs[i];
+        if (!tab) return;
+        setCtxMenu({
+          x: e.clientX,
+          y: e.clientY,
+          items: [
+            { label: "Close", action: () => props.onClose(tab.id) },
+            { label: "Close Others", action: () => {
+              props.tabs.forEach(t => { if (t.id !== tab.id) props.onClose(t.id); });
+            }},
+            { label: "Close All", action: () => {
+              props.tabs.forEach(t => props.onClose(t.id));
+            }},
+            { separator: true },
+            { label: "Rename", action: () => startInlineRename(tab) },
+            ...(tab.path ? [
+              { separator: true as const },
+              { label: "Copy Path", action: () => navigator.clipboard.writeText(tab.path) },
+            ] : []),
+          ],
+        });
+        return;
+      }
+    }
+  }
+
   // ── Render ─────────────────────────────────────────────────────────
 
   return (
@@ -360,6 +400,7 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
         height={BAR_H}
         paint={paint}
         onWheel={handleWheel}
+        onContextMenu={handleContextMenu}
         onKeyDown={handleKeyDown}
         tabIndex={0}
       >
@@ -416,6 +457,7 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
           </div>
         )}
       </Show>
+      <ContextMenu menu={ctxMenu()} onClose={() => setCtxMenu(null)} />
     </>
   );
 };
