@@ -97,6 +97,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   let scrollbackAlt: TermCell[][] = [];
   let inAltScreen = false;
   let scrollOffset = 0;
+  let isComposingInput = false;
   const MAX_SCROLLBACK = 10_000;
   let mouseMode = "none";
   let mouseEncoding = "default";
@@ -479,7 +480,10 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   }
 
   function handleInput() {
+    // Only used as fallback for IME/composition input.
+    // All regular keystrokes are captured directly in handleKeyDown.
     if (!hiddenInput || !ptyId) return;
+    if (isComposingInput) return; // Wait for compositionend
     const text = hiddenInput.value;
     if (!text) return;
     hiddenInput.value = "";
@@ -671,7 +675,13 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       return;
     }
 
-    // Let printable characters go through the hidden textarea input event
+    // Capture printable characters directly instead of relying on textarea input event.
+    // This avoids WKWebView race conditions between keydown/input event ordering.
+    if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1 && !isComposingInput) {
+      e.preventDefault();
+      if (hiddenInput) hiddenInput.value = "";
+      invoke("terminal_write", { termId: ptyId, data: e.key }).catch((e) => console.warn("Terminal IPC error:", e));
+    }
   }
 
   // React to visibility changes — resize once the terminal becomes visible.
@@ -966,6 +976,12 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
             e.preventDefault();
             e.clipboardData?.setData("text/plain", text);
           }
+        },
+        onCompositionStart: () => { isComposingInput = true; },
+        onCompositionEnd: () => {
+          isComposingInput = false;
+          // Flush composed text via handleInput
+          handleInput();
         },
         onFocus: () => {
           isFocused = true;
