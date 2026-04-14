@@ -36,6 +36,24 @@ pub async fn debug_launch(
     program: String,
     workspace_root: String,
 ) -> Result<(), String> {
+    // Validate adapter command against the registry allowlist.
+    // Only commands that match a registered adapter's command field are permitted.
+    let basename = std::path::Path::new(&adapter_cmd)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&adapter_cmd);
+    let allowed = state.adapter_registry.list().iter().any(|a| {
+        a.command == adapter_cmd || a.command == basename
+    });
+    if !allowed {
+        eprintln!("[security] Rejected debug adapter launch: {}", adapter_cmd);
+        return Err(format!(
+            "Adapter '{}' is not in the allowed registry. Registered adapters: {}",
+            adapter_cmd,
+            state.adapter_registry.list().iter().map(|a| a.command.as_str()).collect::<Vec<_>>().join(", ")
+        ));
+    }
+
     let args_ref: Vec<&str> = adapter_args.iter().map(|s| s.as_str()).collect();
     state.launch(&adapter_cmd, &args_ref, &program, &workspace_root).await
 }

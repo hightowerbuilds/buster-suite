@@ -55,12 +55,12 @@
 - [x] Git panel: right-click menu (stage, unstage, discard, diff)
 
 ## 6. Security Fixes
-- [ ] Upgrade `@chenglou/pretext` from 0.0.4 to 0.0.5 (DoS fix)
-- [ ] Remove `unstable` feature flag from Tauri in Cargo.toml
-- [ ] Replace custom shell word parser in extension runtime with `shlex` crate
-- [ ] Sandbox debugger: allowlist adapter commands instead of accepting arbitrary paths
-- [ ] Run `cargo audit` and address any findings
-- [ ] Validate debug adapter paths against a registry before execution
+- [x] Upgrade `@chenglou/pretext` from 0.0.4 to 0.0.5 (DoS fix)
+- [ ] Remove `unstable` feature flag from Tauri in Cargo.toml (blocked: required for browser webview)
+- [x] Replace custom shell word parser in extension runtime with `shlex` crate
+- [x] Sandbox debugger: allowlist adapter commands instead of accepting arbitrary paths
+- [x] Run `cargo audit` and address any findings (wasmtime v29 has CVEs; upgrade to v36+ is a major refactor)
+- [x] Validate debug adapter paths against a registry before execution
 
 ## 7. Extract BusterProvider Actions
 - [ ] Create `src/lib/buster-actions.ts` with all action implementations

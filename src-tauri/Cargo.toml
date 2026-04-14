@@ -94,6 +94,9 @@ memmap2 = "0.9"
 # Image support
 base64 = "0.22"
 
+# Shell word parsing (security: replaces custom parser)
+shlex = "1"
+
 # Buster supporting libraries
 buster-sandbox = { path = "crates/sandbox" }
 buster-lsp-manager = { path = "crates/lsp-manager" }

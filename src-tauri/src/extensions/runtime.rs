@@ -53,44 +53,10 @@ fn validate_write_target(path: &str, workspace_root: &str) -> Option<PathBuf> {
     Some(canonical_target)
 }
 
-/// Parse a command string with shell-word splitting.
-/// Handles double quotes, single quotes, and backslash escapes.
+/// Parse a command string with shell-word splitting using the `shlex` crate.
 /// e.g. `git commit -m "fix bug"` → ["git", "commit", "-m", "fix bug"]
 fn parse_shell_words(input: &str) -> Vec<String> {
-    let mut words = Vec::new();
-    let mut current = String::new();
-    let mut chars = input.chars().peekable();
-    let mut in_double = false;
-    let mut in_single = false;
-
-    while let Some(ch) = chars.next() {
-        match ch {
-            '\\' if !in_single => {
-                // Backslash escape: take next char literally
-                if let Some(next) = chars.next() {
-                    current.push(next);
-                }
-            }
-            '"' if !in_single => {
-                in_double = !in_double;
-            }
-            '\'' if !in_double => {
-                in_single = !in_single;
-            }
-            c if c.is_whitespace() && !in_double && !in_single => {
-                if !current.is_empty() {
-                    words.push(std::mem::take(&mut current));
-                }
-            }
-            _ => {
-                current.push(ch);
-            }
-        }
-    }
-    if !current.is_empty() {
-        words.push(current);
-    }
-    words
+    shlex::split(input).unwrap_or_default()
 }
 
 /// Per-extension WASM state held inside the Store.
