@@ -63,14 +63,14 @@
 - [x] Validate debug adapter paths against a registry before execution
 
 ## 7. Extract BusterProvider Actions
-- [ ] Create `src/lib/buster-actions.ts` with all action implementations
-- [ ] Move file operations (save, open, close, external change) to actions module
-- [ ] Move git operations (sync, branch refresh) to actions module
-- [ ] Move tab management (create, close, switch, reorder) to actions module
-- [ ] Move LSP orchestration to actions module
-- [ ] Move extension/browser/debug tab creation to actions module
-- [ ] Keep BusterProvider.tsx as store creation + effect wiring only
-- [ ] Add dependency injection so actions are testable without full store
+- [x] Create `src/lib/buster-actions.ts` with all action implementations
+- [x] Move file operations (save, open, close, external change) to actions module
+- [x] Move git operations (sync, branch refresh) to actions module
+- [x] Move tab management (create, close, switch, reorder) to actions module
+- [x] Move LSP orchestration to actions module
+- [x] Move extension/browser/debug tab creation to actions module
+- [x] Keep BusterProvider.tsx as store creation + effect wiring only
+- [x] Add dependency injection so actions are testable without full store
 
 ## 8. Sandbox Debugger Commands
 - [ ] Define an adapter registry (map of language -> allowed adapter paths)
