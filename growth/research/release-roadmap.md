@@ -36,15 +36,15 @@
 - [ ] Test full install/update cycle on each platform
 
 ## 4. Find/Replace Completion
-- [ ] Wire engine-level find into EditorEngine (not just UI layer)
-- [ ] Add match highlighting in the editor canvas (not just find panel)
-- [ ] Complete Vim `/` inline search (currently delegates to find bar)
-- [ ] Complete Vim `?` reverse search
-- [ ] Add Vim `:s/find/replace/g` support
-- [ ] Add keyboard shortcuts for toggling case/regex in find panel
-- [ ] Show match count and current match index
-- [ ] Add "replace all in file" with undo support
-- [ ] Show invalid regex feedback (currently silent)
+- [x] Wire engine-level find into EditorEngine (not just UI layer)
+- [x] Add match highlighting in the editor canvas (not just find panel)
+- [x] Complete Vim `/` inline search (currently delegates to find bar)
+- [x] Complete Vim `?` reverse search
+- [x] Add Vim `:s/find/replace/g` support
+- [x] Add keyboard shortcuts for toggling case/regex in find panel
+- [x] Show match count and current match index
+- [x] Add "replace all in file" with undo support
+- [x] Show invalid regex feedback (currently silent)
 
 ## 5. Context Menus
 - [ ] Build a reusable canvas-rendered context menu component

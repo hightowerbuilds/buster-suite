@@ -65,6 +65,7 @@ export interface BusterStoreState {
 
   // ── Editor data ────────────────────────────────────────
   searchMatches: SearchMatch[];
+  currentSearchIdx: number;
   diagnosticsMap: Record<string, Diagnostic[]>;
 
   // ── Settings / theme ───────────────────────────────────

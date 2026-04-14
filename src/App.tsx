@@ -184,6 +184,7 @@ const App: Component = () => {
     activeTabId: () => store.activeTabId,
     switchToTab: actions.switchToTab,
     searchMatches: () => store.searchMatches,
+    currentSearchIdx: () => store.currentSearchIdx,
     diagnosticsMap: () => {
       // Convert Record to Map for PanelRenderer compatibility
       const m = new Map<string, any[]>();
@@ -316,6 +317,7 @@ const App: Component = () => {
             engine={actions.activeEngine()}
             onClose={() => setStore("findVisible", false)}
             onMatchesChange={(m) => setStore("searchMatches", m)}
+            onCurrentIdxChange={(idx) => setStore("currentSearchIdx", idx)}
             onJumpTo={(line, col) => {
               const eng = actions.activeEngine();
               if (eng) eng.setCursor({ line, col });
@@ -380,6 +382,7 @@ const App: Component = () => {
         initialQuery={store.paletteInitialQuery}
         activeFilePath={store.activeFilePath}
         recentFiles={store.recentFiles}
+        activeEngine={actions.activeEngine()}
       />
       <CanvasToasts />
       <DirtyCloseDialog

@@ -32,6 +32,7 @@ interface CanvasEditorProps {
   onCursorChange?: (line: number, col: number) => void;
   onDirtyChange?: (dirty: boolean) => void;
   searchMatches?: SearchMatch[];
+  currentSearchIdx?: number;
   wordWrap?: boolean;
   fontSize?: number;
   lineNumbers?: boolean;
@@ -72,6 +73,20 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
 
   const vimDeps = {
     openFind: () => setStore("findVisible", true),
+    findNext: () => {
+      const m = store.searchMatches;
+      if (m.length === 0) return;
+      const next = (store.currentSearchIdx + 1) % m.length;
+      setStore("currentSearchIdx", next);
+      engine.setCursor({ line: m[next].line, col: m[next].start_col });
+    },
+    findPrev: () => {
+      const m = store.searchMatches;
+      if (m.length === 0) return;
+      const prev = (store.currentSearchIdx - 1 + m.length) % m.length;
+      setStore("currentSearchIdx", prev);
+      engine.setCursor({ line: m[prev].line, col: m[prev].start_col });
+    },
     openCommandPalette: (prefix: string) => {
       setStore("paletteInitialQuery", prefix);
       setStore("paletteVisible", true);
@@ -861,6 +876,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       selStart: sel?.anchor ?? null,
       selEnd: sel?.head ?? null,
       searchMatches: sm,
+      currentSearchIdx: props.currentSearchIdx ?? -1,
       diagnostics: diag,
       lineTokens: cachedLineTokens,
       completionVisible: ac.completionVisible(),

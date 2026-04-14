@@ -139,6 +139,7 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
               }
             }}
             searchMatches={isActive() ? deps.searchMatches() : []}
+            currentSearchIdx={isActive() ? deps.currentSearchIdx() : -1}
             wordWrap={deps.settings().word_wrap}
             fontSize={deps.settings().font_size}
             lineNumbers={deps.settings().line_numbers}

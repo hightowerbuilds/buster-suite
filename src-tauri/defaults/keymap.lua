@@ -33,6 +33,7 @@ local keymap = {
     -- Command / search
     [":"] = "mode.command",
     ["/"] = "editor.find",
+    ["?"] = "editor.find",
 
     -- Editing
     ["x"] = "edit.delete_char",

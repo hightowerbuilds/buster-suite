@@ -96,6 +96,7 @@ const INITIAL_STATE: BusterStoreState = {
   extChangeFileName: "",
 
   searchMatches: [],
+  currentSearchIdx: -1,
   diagnosticsMap: {},
 
   settings: DEFAULT_SETTINGS,

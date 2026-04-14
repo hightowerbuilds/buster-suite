@@ -65,6 +65,25 @@
   color: var(--text);
 }
 
+.find-btn-active {
+  background: var(--accent);
+  color: var(--bg-crust);
+  border-color: var(--accent);
+}
+
+.find-btn-active:hover {
+  background: var(--accent);
+  color: var(--bg-crust);
+}
+
+.find-input-error {
+  border-color: var(--red) !important;
+}
+
+.find-input-error:focus {
+  border-color: var(--red) !important;
+}
+
 .find-close {
   margin-left: 4px;
 }

@@ -93,6 +93,7 @@ export interface EditorRenderParams {
   selStart: { line: number; col: number } | null;
   selEnd: { line: number; col: number } | null;
   searchMatches: SearchMatch[];
+  currentSearchIdx: number;
   diagnostics: { line: number; col: number; endLine: number; endCol: number; severity: number; message: string }[];
   lineTokens: LineToken[][];
   completionVisible: boolean;
@@ -186,7 +187,7 @@ export function renderEditor(canvas: HTMLCanvasElement, params: EditorRenderPara
   const primaryCursorLine = params.cursors.length > 0 ? params.cursors[0].line : -1;
 
   drawSelection(ctx, params, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, gutterW, charW);
-  drawSearchHighlights(ctx, params.searchMatches, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, gutterW, charW);
+  drawSearchHighlights(ctx, params.searchMatches, params.currentSearchIdx, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, gutterW, charW);
 
   ctx.font = font;
 
@@ -325,6 +326,7 @@ function drawSelection(
 function drawSearchHighlights(
   ctx: CanvasRenderingContext2D,
   searchMatches: SearchMatch[],
+  currentSearchIdx: number,
   displayRows: DisplayRow[],
   firstVisRow: number,
   lastVisRow: number,
@@ -335,8 +337,10 @@ function drawSearchHighlights(
 ) {
   if (!searchMatches || searchMatches.length === 0) return;
 
-  ctx.fillStyle = "rgba(249, 226, 175, 0.25)";
-  for (const m of searchMatches) {
+  for (let mi = 0; mi < searchMatches.length; mi++) {
+    const m = searchMatches[mi];
+    const isCurrent = mi === currentSearchIdx;
+    ctx.fillStyle = isCurrent ? "rgba(249, 226, 175, 0.55)" : "rgba(249, 226, 175, 0.25)";
     for (let r = firstVisRow; r < lastVisRow; r++) {
       const dr = displayRows[r];
       if (dr.bufferLine === m.line) {
@@ -349,6 +353,11 @@ function drawSearchHighlights(
           const x1 = gutterW + PADDING_LEFT + colToPixel(dr.text, cs, charW);
           const x2 = gutterW + PADDING_LEFT + colToPixel(dr.text, ce, charW);
           ctx.fillRect(x1, y, x2 - x1, lineHeight);
+          if (isCurrent) {
+            ctx.strokeStyle = "rgba(249, 226, 175, 0.7)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x1, y, x2 - x1, lineHeight);
+          }
         }
       }
     }

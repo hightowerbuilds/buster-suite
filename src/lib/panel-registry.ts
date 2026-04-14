@@ -35,6 +35,7 @@ export interface FileTabDeps {
   tabs: () => Tab[];
   setTabs: (fn: (prev: Tab[]) => Tab[]) => void;
   searchMatches: () => SearchMatch[];
+  currentSearchIdx: () => number;
   diffHunksMap: () => Record<string, DiffHunk[]>;
   engineMap: Map<string, EditorEngine>;
   getFileTextForTab: (tabId: string) => string | null;

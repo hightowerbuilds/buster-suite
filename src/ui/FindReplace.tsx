@@ -8,42 +8,8 @@ interface FindReplaceProps {
   engine: EditorEngine | null;
   onClose: () => void;
   onMatchesChange: (matches: SearchMatch[]) => void;
+  onCurrentIdxChange?: (idx: number) => void;
   onJumpTo: (line: number, col: number) => void;
-}
-
-function findInLines(lines: string[], query: string, caseSensitive: boolean, useRegex: boolean): SearchMatch[] {
-  if (!query) return [];
-  const matches: SearchMatch[] = [];
-
-  if (useRegex) {
-    let re: RegExp;
-    try {
-      re = new RegExp(query, caseSensitive ? "g" : "gi");
-    } catch {
-      return []; // Invalid regex — return no matches
-    }
-    for (let i = 0; i < lines.length; i++) {
-      re.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(lines[i])) !== null) {
-        if (m[0].length === 0) { re.lastIndex++; continue; } // skip zero-length matches
-        matches.push({ line: i, start_col: m.index, end_col: m.index + m[0].length });
-      }
-    }
-  } else {
-    const q = caseSensitive ? query : query.toLowerCase();
-    for (let i = 0; i < lines.length; i++) {
-      const line = caseSensitive ? lines[i] : lines[i].toLowerCase();
-      let start = 0;
-      while (true) {
-        const pos = line.indexOf(q, start);
-        if (pos === -1) break;
-        matches.push({ line: i, start_col: pos, end_col: pos + query.length });
-        start = pos + 1;
-      }
-    }
-  }
-  return matches;
 }
 
 const FindReplace: Component<FindReplaceProps> = (props) => {
@@ -57,6 +23,7 @@ const FindReplace: Component<FindReplaceProps> = (props) => {
   const [showReplace, setShowReplace] = createSignal(false);
   const [caseSensitive, setCaseSensitive] = createSignal(false);
   const [useRegex, setUseRegex] = createSignal(false);
+  const [regexError, setRegexError] = createSignal<string | null>(null);
 
   const trap = createFocusTrap(() => panelRef, () => props.onClose());
 
@@ -75,15 +42,38 @@ const FindReplace: Component<FindReplaceProps> = (props) => {
     )
   );
 
+  // Broadcast currentIdx changes
+  createEffect(on(currentIdx, (idx) => {
+    props.onCurrentIdxChange?.(idx);
+  }));
+
   function runSearch() {
     const eng = props.engine;
     if (!eng || !query()) {
       setMatches([]);
       setCurrentIdx(-1);
+      setRegexError(null);
       props.onMatchesChange([]);
       return;
     }
-    const results = findInLines(eng.lines(), query(), caseSensitive(), useRegex());
+
+    // Validate regex before searching
+    if (useRegex()) {
+      try {
+        new RegExp(query());
+        setRegexError(null);
+      } catch (e) {
+        setRegexError((e as Error).message);
+        setMatches([]);
+        setCurrentIdx(-1);
+        props.onMatchesChange([]);
+        return;
+      }
+    } else {
+      setRegexError(null);
+    }
+
+    const results = eng.findAll(query(), { caseSensitive: caseSensitive(), regex: useRegex() });
     setMatches(results);
     setCurrentIdx(results.length > 0 ? 0 : -1);
     props.onMatchesChange(results);
@@ -116,7 +106,6 @@ const FindReplace: Component<FindReplaceProps> = (props) => {
     const repl = replacement();
     if (!repl) return "";
     if (!useRegex()) return repl;
-    // Re-run the regex on the matched text to get capture groups
     try {
       const re = new RegExp(query(), caseSensitive() ? "" : "i");
       const matched = matchLine.substring(matchStart, matchEnd);
@@ -151,20 +140,25 @@ const FindReplace: Component<FindReplaceProps> = (props) => {
     const eng = props.engine;
     if (!eng || !query()) return;
 
-    // Replace from bottom to top so positions stay valid
-    const m = [...matches()].reverse();
-    for (const match of m) {
-      const line = eng.getLine(match.line);
-      const replText = computeReplacement(line, match.start_col, match.end_col);
+    // Wrap in undo group so all replacements are a single undo step
+    eng.beginUndoGroup();
+    try {
+      const m = [...matches()].reverse();
+      for (const match of m) {
+        const line = eng.getLine(match.line);
+        const replText = computeReplacement(line, match.start_col, match.end_col);
 
-      eng.deleteRange(
-        { line: match.line, col: match.start_col },
-        { line: match.line, col: match.end_col }
-      );
-      if (replText) {
-        eng.setCursor({ line: match.line, col: match.start_col });
-        eng.insert(replText);
+        eng.deleteRange(
+          { line: match.line, col: match.start_col },
+          { line: match.line, col: match.end_col }
+        );
+        if (replText) {
+          eng.setCursor({ line: match.line, col: match.start_col });
+          eng.insert(replText);
+        }
       }
+    } finally {
+      eng.endUndoGroup();
     }
 
     setMatches([]);
@@ -181,6 +175,14 @@ const FindReplace: Component<FindReplaceProps> = (props) => {
     } else if (e.key === "Enter" && e.shiftKey) {
       e.preventDefault();
       jumpPrev();
+    } else if ((e.altKey || e.metaKey) && e.key === "c") {
+      // Alt+C or Cmd+Alt+C — toggle case sensitivity
+      e.preventDefault();
+      setCaseSensitive(!caseSensitive());
+    } else if ((e.altKey || e.metaKey) && e.key === "r") {
+      // Alt+R or Cmd+Alt+R — toggle regex
+      e.preventDefault();
+      setUseRegex(!useRegex());
     }
   }
 
@@ -195,23 +197,36 @@ const FindReplace: Component<FindReplaceProps> = (props) => {
         <input
           ref={findInputRef}
           class="find-input"
+          classList={{ "find-input-error": !!regexError() }}
           type="text"
           placeholder="Find"
           value={query()}
           onInput={(e) => setQuery(e.currentTarget.value)}
         />
         <span class="find-count">
-          {matches().length > 0
+          {regexError()
+            ? "Bad regex"
+            : matches().length > 0
             ? `${currentIdx() + 1}/${matches().length}`
             : query()
             ? "No results"
             : ""}
         </span>
-        <button class="find-btn" onClick={() => setCaseSensitive(!caseSensitive())} title="Case sensitive">
-          <span style={{ opacity: caseSensitive() ? 1 : 0.4 }}>Aa</span>
+        <button
+          class="find-btn"
+          classList={{ "find-btn-active": caseSensitive() }}
+          onClick={() => setCaseSensitive(!caseSensitive())}
+          title="Case sensitive (Alt+C)"
+        >
+          Aa
         </button>
-        <button class="find-btn" onClick={() => setUseRegex(!useRegex())} title="Use regular expression">
-          <span style={{ opacity: useRegex() ? 1 : 0.4 }}>.*</span>
+        <button
+          class="find-btn"
+          classList={{ "find-btn-active": useRegex() }}
+          onClick={() => setUseRegex(!useRegex())}
+          title="Regular expression (Alt+R)"
+        >
+          .*
         </button>
         <button class="find-btn" onClick={jumpPrev} title="Previous (Shift+Enter)">^</button>
         <button class="find-btn" onClick={jumpNext} title="Next (Enter)">v</button>

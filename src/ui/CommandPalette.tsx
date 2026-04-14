@@ -4,6 +4,8 @@ import type { WorkspaceFile, WorkspaceSearchResult, LspDocumentSymbol } from "..
 import { registry, type Command } from "../lib/command-registry";
 import { createFocusTrap } from "../lib/a11y";
 import { basename, dirname } from "buster-path";
+import type { EditorEngine } from "../editor/engine";
+import { showInfo } from "../lib/notify";
 
 interface CommandPaletteProps {
   visible: boolean;
@@ -14,6 +16,7 @@ interface CommandPaletteProps {
   initialQuery?: string;
   activeFilePath?: string | null;
   recentFiles?: { path: string; name: string }[];
+  activeEngine?: EditorEngine | null;
 }
 
 function fuzzyMatch(query: string, text: string): number {
@@ -233,6 +236,37 @@ const CommandPalette: Component<CommandPaletteProps> = (props) => {
         }
       } else if (isLineMode()) {
         const target = query().slice(1).trim();
+
+        // Vim :s/pattern/replacement/flags substitution
+        const subMatch = target.match(/^s\/(.+?)\/(.*)\/(\w*)$/);
+        if (subMatch && props.activeEngine) {
+          const [, pattern, replacement, flags] = subMatch;
+          const global = flags.includes("g");
+          const caseSensitive = !flags.includes("i");
+          const eng = props.activeEngine;
+          const matches = eng.findAll(pattern, { caseSensitive, regex: true });
+          if (matches.length === 0) {
+            showInfo("No matches found");
+          } else {
+            eng.beginUndoGroup();
+            try {
+              const toReplace = global ? [...matches].reverse() : [matches[0]];
+              let re: RegExp;
+              try { re = new RegExp(pattern, caseSensitive ? "" : "i"); } catch { re = new RegExp(""); }
+              for (const m of toReplace) {
+                const line = eng.getLine(m.line);
+                const matched = line.substring(m.start_col, m.end_col);
+                const replText = matched.replace(re, replacement);
+                eng.deleteRange({ line: m.line, col: m.start_col }, { line: m.line, col: m.end_col });
+                if (replText) { eng.setCursor({ line: m.line, col: m.start_col }); eng.insert(replText); }
+              }
+            } finally { eng.endUndoGroup(); }
+            showInfo(`Replaced ${global ? matches.length : 1} occurrence${global && matches.length !== 1 ? "s" : ""}`);
+          }
+          props.onClose();
+          return;
+        }
+
         const match = target.match(/^(\d+)(?::(\d+))?$/);
         if (match && props.onGoToLine) {
           const line = Math.max(0, Number.parseInt(match[1], 10) - 1);
@@ -330,7 +364,7 @@ const CommandPalette: Component<CommandPaletteProps> = (props) => {
             </Show>
           </Show>
           <Show when={isLineMode()}>
-            <div class="palette-empty">Enter `line` or `line:column` and press Enter</div>
+            <div class="palette-empty">line[:col] or s/find/replace/g</div>
           </Show>
           <Show when={isSymbolMode()}>
             <For each={filteredSymbols()}>

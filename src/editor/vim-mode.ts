@@ -25,6 +25,8 @@ export interface VimKeymap {
 
 export interface VimDeps {
   openFind: () => void;
+  findNext: () => void;
+  findPrev: () => void;
   openCommandPalette: (prefix: string) => void;
   handleSave: () => void;
   handleTabClose: () => void;
@@ -302,15 +304,15 @@ export function createVimHandler(): VimHandler {
         deps.openFind();
         break;
       case "search.next":
-        // Dispatch to find-next (handled externally)
+        deps.findNext();
         break;
       case "search.prev":
+        deps.findPrev();
         break;
       case "search.word_under_cursor": {
         const word = engine.getWordUnderCursor();
         if (word) {
           deps.openFind();
-          // The find bar will be opened — word search is TODO
         }
         break;
       }

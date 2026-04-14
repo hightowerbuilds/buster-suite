@@ -17,6 +17,7 @@
 
 import { createSignal, batch } from "solid-js";
 import { getCharWidth, isWideChar, stringDisplayWidth, pixelToCol } from "./text-measure";
+import type { SearchMatch } from "../lib/ipc";
 
 export { getCharWidth };
 
@@ -893,6 +894,40 @@ export function createEditorEngine(initialText: string = "", filePath?: string) 
       while (start > 0 && /\w/.test(line[start - 1])) start--;
       while (end < line.length && /\w/.test(line[end])) end++;
       return line.slice(start, end);
+    },
+
+    /** Find all matches in the document. Returns SearchMatch[] for use by find panel, vim search, etc. */
+    findAll(query: string, opts?: { caseSensitive?: boolean; regex?: boolean }): SearchMatch[] {
+      if (!query) return [];
+      const cs = opts?.caseSensitive ?? false;
+      const ls = lines();
+      const results: SearchMatch[] = [];
+
+      if (opts?.regex) {
+        let re: RegExp;
+        try { re = new RegExp(query, cs ? "g" : "gi"); } catch { return []; }
+        for (let i = 0; i < ls.length; i++) {
+          re.lastIndex = 0;
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(ls[i])) !== null) {
+            if (m[0].length === 0) { re.lastIndex++; continue; }
+            results.push({ line: i, start_col: m.index, end_col: m.index + m[0].length });
+          }
+        }
+      } else {
+        const q = cs ? query : query.toLowerCase();
+        for (let i = 0; i < ls.length; i++) {
+          const line = cs ? ls[i] : ls[i].toLowerCase();
+          let start = 0;
+          while (true) {
+            const pos = line.indexOf(q, start);
+            if (pos === -1) break;
+            results.push({ line: i, start_col: pos, end_col: pos + query.length });
+            start = pos + 1;
+          }
+        }
+      }
+      return results;
     },
 
     // ── Undo / Redo ─────────────────────────────────────────────
