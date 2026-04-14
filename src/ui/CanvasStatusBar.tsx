@@ -286,6 +286,8 @@ const CanvasStatusBar: Component<CanvasStatusBarProps> = (props) => {
       class="status-bar"
       height={BAR_H}
       paint={paint}
+      role="status"
+      aria-label="Status bar"
     />
   );
 };

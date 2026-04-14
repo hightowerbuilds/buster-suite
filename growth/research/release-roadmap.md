@@ -73,27 +73,27 @@
 - [x] Add dependency injection so actions are testable without full store
 
 ## 8. Sandbox Debugger Commands
-- [ ] Define an adapter registry (map of language -> allowed adapter paths)
-- [ ] Validate `adapter_cmd` in `debug_launch()` against the registry
-- [ ] Reject arbitrary command paths from frontend
+- [x] Define an adapter registry (map of language -> allowed adapter paths)
+- [x] Validate `adapter_cmd` in `debug_launch()` against the registry
+- [x] Reject arbitrary command paths from frontend
 - [ ] Add configuration for custom adapter paths (user-approved only)
-- [ ] Log rejected adapter attempts for security auditing
+- [x] Log rejected adapter attempts for security auditing
 
 ## 9. Legal & Governance Files
-- [ ] Add `LICENSE` file (MIT, matching package.json claim)
+- [x] Add `LICENSE` file (MIT, matching package.json claim)
 - [ ] Add `CHANGELOG.md` with version history starting from current state
-- [ ] Add `CONTRIBUTING.md` with build instructions and contribution guidelines
-- [ ] Add `SECURITY.md` with vulnerability disclosure policy
-- [ ] Add GitHub issue templates (bug report, feature request)
-- [ ] Add pull request template
+- [x] Add `CONTRIBUTING.md` with build instructions and contribution guidelines
+- [x] Add `SECURITY.md` with vulnerability disclosure policy
+- [x] Add GitHub issue templates (bug report, feature request)
+- [x] Add pull request template
 
 ## 10. Accessibility Pass
-- [ ] Audit all canvas-rendered components for ARIA label coverage
-- [ ] Add `aria-label` to CanvasSurface instances (tab bar, status bar, dock bar)
+- [x] Audit all canvas-rendered components for ARIA label coverage
+- [x] Add `aria-label` to CanvasSurface instances (tab bar, status bar, dock bar)
 - [ ] Add screen-reader-only text alternatives for canvas content
-- [ ] Verify keyboard navigation through all major panels
-- [ ] Add visible focus indicators for all interactive elements
+- [x] Verify keyboard navigation through all major panels
+- [x] Add visible focus indicators for all interactive elements
 - [ ] Test with VoiceOver (macOS) end-to-end
 - [ ] Add high-contrast mode option (not just hue adjustment)
-- [ ] Ensure terminal is keyboard-accessible (tabindex, focus management)
+- [x] Ensure terminal is keyboard-accessible (tabindex, focus management)
 - [ ] Document keyboard shortcuts in an accessible help dialog

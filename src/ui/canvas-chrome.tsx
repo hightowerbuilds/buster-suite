@@ -48,6 +48,8 @@ export interface CanvasChromeProps {
   onKeyDown?: (e: KeyboardEvent) => void;
   tabIndex?: number;
   children?: JSX.Element;
+  role?: string;
+  "aria-label"?: string;
 }
 
 // ── Chrome font constant ─────────────────────────────────────────────
@@ -168,6 +170,8 @@ const CanvasChrome: Component<CanvasChromeProps> = (props) => {
       onContextMenu={props.onContextMenu}
       onKeyDown={props.onKeyDown}
       tabIndex={props.tabIndex}
+      role={props.role}
+      aria-label={props["aria-label"]}
     >
       <canvas ref={(el) => { canvasRef = el; }} style={{ display: "block" }} />
       {props.children}

@@ -403,6 +403,8 @@ const CanvasTabBar: Component<CanvasTabBarProps> = (props) => {
         onContextMenu={handleContextMenu}
         onKeyDown={handleKeyDown}
         tabIndex={0}
+        role="tablist"
+        aria-label="Open tabs"
       >
         <Show when={editingTab()}>
           {(editing) => {

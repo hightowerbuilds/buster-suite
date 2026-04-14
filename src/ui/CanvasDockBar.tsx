@@ -170,6 +170,8 @@ const CanvasDockBar: Component<CanvasDockBarProps> = (props) => {
       height={BAR_H}
       paint={paint}
       style={{ "flex-shrink": "0" }}
+      role="toolbar"
+      aria-label="Panel layout"
     />
   );
 };
