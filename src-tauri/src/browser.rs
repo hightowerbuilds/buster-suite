@@ -54,7 +54,8 @@ impl BrowserManager {
         window
             .add_child(
                 WebviewBuilder::new(&browser_id, WebviewUrl::External(parsed_url))
-                    .data_directory(data_dir),
+                    .data_directory(data_dir)
+                    .initialization_script(Self::dark_theme_script()),
                 tauri::LogicalPosition::new(x, y),
                 tauri::LogicalSize::new(width, height),
             )
@@ -194,5 +195,28 @@ impl BrowserManager {
             }
         }
         Ok(())
+    }
+
+    pub fn go_back(&self, app: &AppHandle, browser_id: &str) -> Result<(), String> {
+        let webview = app.get_webview(browser_id).ok_or("Browser view not found")?;
+        webview.eval("history.back()").map_err(|e| format!("eval failed: {}", e))
+    }
+
+    pub fn go_forward(&self, app: &AppHandle, browser_id: &str) -> Result<(), String> {
+        let webview = app.get_webview(browser_id).ok_or("Browser view not found")?;
+        webview.eval("history.forward()").map_err(|e| format!("eval failed: {}", e))
+    }
+
+    pub fn reload(&self, app: &AppHandle, browser_id: &str) -> Result<(), String> {
+        let webview = app.get_webview(browser_id).ok_or("Browser view not found")?;
+        webview.eval("location.reload()").map_err(|e| format!("eval failed: {}", e))
+    }
+
+    fn dark_theme_script() -> &'static str {
+        r#"(function(){
+            var s=document.createElement('style');
+            s.textContent='html{background:#1e1e2e!important;color-scheme:dark}::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:#1e1e2e}::-webkit-scrollbar-thumb{background:#45475a;border-radius:4px}::-webkit-scrollbar-thumb:hover{background:#585b70}::selection{background:rgba(137,180,250,0.3)}';
+            document.documentElement.appendChild(s);
+        })();"#
     }
 }

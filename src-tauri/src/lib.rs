@@ -351,6 +351,9 @@ pub fn run() {
             commands::browser::close_browser_view,
             commands::browser::hide_all_browser_views,
             commands::browser::show_all_browser_views,
+            commands::browser::browser_go_back,
+            commands::browser::browser_go_forward,
+            commands::browser::browser_reload,
             commands::browser::scan_local_ports,
             // Built-in Browser Module
             commands::browser_module::browser_module_launch,

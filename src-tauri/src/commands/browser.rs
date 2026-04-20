@@ -100,6 +100,33 @@ pub fn hide_all_browser_views(
 }
 
 #[command]
+pub fn browser_go_back(
+    app: AppHandle,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
+    browser_id: String,
+) -> Result<(), String> {
+    state.go_back(&app, &browser_id)
+}
+
+#[command]
+pub fn browser_go_forward(
+    app: AppHandle,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
+    browser_id: String,
+) -> Result<(), String> {
+    state.go_forward(&app, &browser_id)
+}
+
+#[command]
+pub fn browser_reload(
+    app: AppHandle,
+    state: State<'_, std::sync::Arc<BrowserManager>>,
+    browser_id: String,
+) -> Result<(), String> {
+    state.reload(&app, &browser_id)
+}
+
+#[command]
 pub fn show_all_browser_views(
     app: AppHandle,
     state: State<'_, std::sync::Arc<BrowserManager>>,

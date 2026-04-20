@@ -475,7 +475,44 @@ export const surfaceResizeNotify = (surfaceId: number, width: number, height: nu
 
 export const evaluateKeymap = () => invoke<string>("evaluate_keymap");
 
-// ── Built-in Browser Module ──────────────────────────────────────────
+// ── Browser Panel (direct webview control) ──────────────────────────
+
+export interface LocalPort {
+  port: number;
+  url: string;
+}
+
+export const createBrowserView = (url: string, x: number, y: number, width: number, height: number) =>
+  invoke<string>("create_browser_view", { url, x, y, width, height });
+
+export const navigateBrowserView = (browserId: string, url: string) =>
+  invoke<void>("navigate_browser_view", { browserId, url });
+
+export const resizeBrowserView = (browserId: string, x: number, y: number, width: number, height: number) =>
+  invoke<void>("resize_browser_view", { browserId, x, y, width, height });
+
+export const showBrowserView = (browserId: string) =>
+  invoke<void>("show_browser_view", { browserId });
+
+export const hideBrowserView = (browserId: string) =>
+  invoke<void>("hide_browser_view", { browserId });
+
+export const closeBrowserView = (browserId: string) =>
+  invoke<void>("close_browser_view", { browserId });
+
+export const browserGoBack = (browserId: string) =>
+  invoke<void>("browser_go_back", { browserId });
+
+export const browserGoForward = (browserId: string) =>
+  invoke<void>("browser_go_forward", { browserId });
+
+export const browserReload = (browserId: string) =>
+  invoke<void>("browser_reload", { browserId });
+
+export const scanLocalPorts = () =>
+  invoke<LocalPort[]>("scan_local_ports");
+
+// ── Built-in Browser Module (WASM, legacy) ──────────────────────────
 
 export const browserModuleLaunch = () => invoke<string>("browser_module_launch");
 export const browserModulePoll = () => invoke<string>("browser_module_poll");

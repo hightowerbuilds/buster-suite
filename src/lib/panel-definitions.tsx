@@ -19,7 +19,7 @@ import SearchResultsPanel from "../ui/SearchResultsPanel";
 import Sidebar from "../ui/Sidebar";
 import ImageViewer from "../ui/ImageViewer";
 import DisplayListSurface from "../ui/DisplayListSurface";
-import BrowserSurface from "../ui/BrowserSurface";
+import CanvasBrowserPanel from "../ui/CanvasBrowserPanel";
 import ConsolePanel from "../ui/ConsolePanel";
 
 // ── Terminal ─────────────────────────────────────────────────────────
@@ -150,18 +150,13 @@ registerPanel("surface", {
 // ── Built-in Browser ────────────────────────────────────────────────
 
 registerPanel("browser", {
-  render: (tab, isActive) => {
-    const meta = JSON.parse(tab.path || "{}");
-    return (
-      <BrowserSurface
-        surfaceId={meta.surface_id ?? 0}
-        initialWidth={meta.width ?? 800}
-        initialHeight={meta.height ?? 600}
-        label={tab.name}
-        isActive={isActive()}
-      />
-    );
-  },
+  render: (tab, isActive) => (
+    <CanvasBrowserPanel
+      tabId={tab.id}
+      active={isActive()}
+      initialUrl={tab.path || undefined}
+    />
+  ),
 });
 
 // ── Buster Console ──────────────────────────────────────────────────

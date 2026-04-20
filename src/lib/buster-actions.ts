@@ -31,7 +31,7 @@ import {
   largeFileOpen, largeFileReadLines,
   largeFileClose, loadSettings as loadSettingsIpc, saveSettings as saveSettingsIpc,
   setTerminalTheme as setTerminalThemeIpc, extUnload,
-  browserModuleLaunch, browserModuleClose,
+  browserModuleClose,
 } from "./ipc";
 
 import {
@@ -324,12 +324,11 @@ export function createBusterActions(deps: ActionDeps): BusterActions & {
   function createProblemsTab() { openSingletonTab("problems", "problems_tab", "Problems"); }
   function createConsoleTab() { openSingletonTab("console", "console_tab", "Console"); }
 
-  async function createBrowserTab() {
-    try {
-      await browserModuleLaunch();
-    } catch (e) {
-      showError("Failed to launch browser", e);
-    }
+  function createBrowserTab(url?: string) {
+    const tabId = `browser_tab_${Date.now()}`;
+    const newTab: Tab = { id: tabId, name: "Browser", path: url || "", dirty: false, type: "browser" };
+    setStore("tabs", [...store.tabs, newTab]);
+    switchToTab(tabId);
   }
 
   function popOutSidebar() {
