@@ -4,8 +4,8 @@ import { gitBlame, evaluateKeymap } from "../lib/ipc";
 import { createEditorEngine, getCharWidth, type EditorEngine } from "./engine";
 import { FONT_FAMILY } from "./text-measure";
 import { requestHighlights, spansToLineTokens, setSyntaxPalette, syntaxOpen, syntaxClose, type LineToken } from "./ts-highlighter";
-import { renderEditor, setGPURendering } from "./canvas-renderer";
-import { initWebGLText, disposeWebGLText } from "./webgl-text";
+import { renderEditor } from "./canvas-renderer";
+import { WebGLTextContext } from "./webgl-text";
 import { createAutocomplete } from "./editor-autocomplete";
 import { createHover } from "./editor-hover";
 import { createSignatureHelp } from "./editor-signature";
@@ -46,6 +46,15 @@ interface CanvasEditorProps {
 
 // Cursor is always visible — no blink
 
+// ─── Active-panel scroll routing ────────────────────────────────────
+// A wheel event over ANY editor panel (hover-routed by the browser) is
+// forwarded here, then dispatched to whichever editor registered itself
+// as "the active one". This gives the user focus-based scroll semantics:
+// click a panel → every subsequent scroll scrolls THAT panel, regardless
+// of cursor position. Inactive panels' scroll state never mutates, so the
+// paint-skip optimization at doRender() remains sound.
+const activeScrollTarget: { apply: ((deltaY: number) => void) | null } = { apply: null };
+
 // ─── Component ──────────────────────────────────────────────────────
 
 const CanvasEditor: Component<CanvasEditorProps> = (props) => {
@@ -57,6 +66,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
   let hiddenInput: HTMLTextAreaElement | undefined;
   let containerRef: HTMLDivElement | undefined;
   let animFrameId: number;
+  let gpuCtx: WebGLTextContext | null = null;
   // ── Engine ──────────────────────────────────────────────────────
 
   const engine = createEditorEngine(props.initialText, props.filePath ?? undefined);
@@ -825,13 +835,32 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     setScrollTop(Math.max(0, Math.min(scrollTop() + delta, maxScroll)));
   }
 
-  function handleScroll(e: WheelEvent) {
-    e.preventDefault();
-    pendingScrollDelta += e.deltaY;
+  /** Apply a wheel delta to THIS editor's scroll state. Registered with
+   *  `activeScrollTarget` when this panel is active, so every wheel event
+   *  in the app (regardless of cursor position) lands here. */
+  function applyScroll(deltaY: number) {
+    pendingScrollDelta += deltaY;
     if (!scrollRafId) {
       scrollRafId = requestAnimationFrame(flushScroll);
     }
   }
+
+  function handleScroll(e: WheelEvent) {
+    e.preventDefault();
+    // Route to whichever editor is currently the active panel, not to
+    // whichever panel the cursor happens to be over. Null = no active
+    // editor registered (e.g., welcome screen).
+    activeScrollTarget.apply?.(e.deltaY);
+  }
+
+  // Register/unregister as the active scroll target based on props.active.
+  createEffect(() => {
+    if (props.active !== false) {
+      activeScrollTarget.apply = applyScroll;
+    } else if (activeScrollTarget.apply === applyScroll) {
+      activeScrollTarget.apply = null;
+    }
+  });
 
   // ── On-demand rendering (no permanent rAF loop) ────────────────
 
@@ -902,6 +931,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       isFoldable: (line: number) => engine.isFoldable(line),
       breakpointLines: breakpointSet(),
       cursorStyle: vim.enabled() && vim.mode() !== "insert" ? "block" : "line",
+      gpu: gpuCtx,
     });
   }
 
@@ -979,11 +1009,12 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       syntaxOpen(fp, engine.lines().join("\n"));
     }
 
-    // Initialize GPU text renderer (falls back to Canvas 2D if WebGL unavailable)
-    const glCanvas = initWebGLText(fontSize(), FONT_FAMILY);
-    if (glCanvas && containerRef) {
-      containerRef.appendChild(glCanvas);
-      setGPURendering(true);
+    // Initialize per-instance GPU text renderer (falls back to Canvas 2D
+    // if WebGL unavailable). Each CanvasEditor owns its own context — this
+    // is what lets split-panel layouts render two files without clobbering.
+    gpuCtx = WebGLTextContext.tryCreate(fontSize(), FONT_FAMILY);
+    if (gpuCtx && containerRef) {
+      containerRef.appendChild(gpuCtx.canvas);
     }
 
     scheduleRender();
@@ -997,13 +1028,12 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       clearTimeout(resizeTimer);
       resizeObserver.disconnect();
       a11y.cleanup();
+      if (activeScrollTarget.apply === applyScroll) activeScrollTarget.apply = null;
       // Close document syntax tree
       if (fp) syntaxClose(fp);
       // Clean up GPU text renderer
-      if (glCanvas) {
-        setGPURendering(false);
-        disposeWebGLText();
-      }
+      gpuCtx?.dispose();
+      gpuCtx = null;
     });
   });
 

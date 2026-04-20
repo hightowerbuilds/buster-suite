@@ -314,83 +314,80 @@ export class WebGLTextRenderer {
 
 // ── Public API ───────────────────────────────────────────────
 
-let glRenderer: WebGLTextRenderer | null = null;
-let glCanvas: HTMLCanvasElement | null = null;
-let atlas: GlyphAtlas | null = null;
-let currentFontSize = 0;
-let currentFontFamily = "";
-
 /**
- * Initialize the WebGL text renderer. Call once when the editor mounts.
- * Returns the WebGL canvas element to layer behind the 2D canvas.
+ * Per-editor WebGL text rendering context. One instance per CanvasEditor.
+ * Owns its own canvas element, GL context, atlas, and font tracking —
+ * so that multiple editors (e.g. in split panel layouts) don't clobber
+ * each other's state.
  */
-export function initWebGLText(fontSize: number, fontFamily: string): HTMLCanvasElement | null {
-  try {
-    glCanvas = document.createElement("canvas");
-    glCanvas.style.position = "absolute";
-    glCanvas.style.top = "0";
-    glCanvas.style.left = "0";
-    glCanvas.style.width = "100%";
-    glCanvas.style.height = "100%";
-    glCanvas.style.pointerEvents = "none";
+export class WebGLTextContext {
+  readonly canvas: HTMLCanvasElement;
+  private readonly renderer: WebGLTextRenderer;
+  private atlas: GlyphAtlas;
+  private currentFontSize: number;
+  private currentFontFamily: string;
 
-    glRenderer = new WebGLTextRenderer(glCanvas);
-    atlas = new GlyphAtlas(fontSize, fontFamily);
-    currentFontSize = fontSize;
-    currentFontFamily = fontFamily;
+  private constructor(fontSize: number, fontFamily: string) {
+    this.canvas = document.createElement("canvas");
+    this.canvas.style.position = "absolute";
+    this.canvas.style.top = "0";
+    this.canvas.style.left = "0";
+    this.canvas.style.width = "100%";
+    this.canvas.style.height = "100%";
+    this.canvas.style.pointerEvents = "none";
 
-    return glCanvas;
-  } catch {
-    // WebGL not available — fall back to Canvas 2D
-    glRenderer = null;
-    glCanvas = null;
-    atlas = null;
-    return null;
+    this.renderer = new WebGLTextRenderer(this.canvas);
+    this.atlas = new GlyphAtlas(fontSize, fontFamily);
+    this.currentFontSize = fontSize;
+    this.currentFontFamily = fontFamily;
   }
-}
 
-/** Check if WebGL text rendering is active. */
-export function isWebGLActive(): boolean {
-  return glRenderer !== null && glRenderer.ready;
-}
-
-/** Begin a new text rendering frame. */
-export function beginTextFrame(fontSize: number, fontFamily: string): void {
-  if (!glRenderer || !atlas) return;
-  if (fontSize !== currentFontSize || fontFamily !== currentFontFamily) {
-    atlas.reset();
-    atlas = new GlyphAtlas(fontSize, fontFamily);
-    currentFontSize = fontSize;
-    currentFontFamily = fontFamily;
-  }
-  glRenderer.begin();
-}
-
-/** Queue a text string for GPU rendering. */
-export function queueText(text: string, x: number, y: number, color: string, charW: number): void {
-  if (!glRenderer || !atlas || !text) return;
-  for (let i = 0; i < text.length; i++) {
-    const glyph = atlas.getGlyph(text[i], color);
-    if (glyph.w > 0) {
-      glRenderer.addChar(x + i * charW, y, glyph, ATLAS_SIZE);
+  /** Try to create a context. Returns null if WebGL 2 is unavailable. */
+  static tryCreate(fontSize: number, fontFamily: string): WebGLTextContext | null {
+    try {
+      return new WebGLTextContext(fontSize, fontFamily);
+    } catch {
+      return null;
     }
   }
-}
 
-/** Flush the GPU text frame — draws all queued characters. */
-export function flushTextFrame(width: number, height: number): void {
-  if (!glRenderer || !atlas) return;
-  if (atlas.dirty) {
-    glRenderer.uploadAtlas(atlas);
-    atlas.clearDirty();
+  isActive(): boolean {
+    return this.renderer.ready;
   }
-  glRenderer.flush(width, height);
-}
 
-/** Dispose WebGL resources. */
-export function disposeWebGLText(): void {
-  glRenderer?.dispose();
-  glRenderer = null;
-  glCanvas = null;
-  atlas = null;
+  /** Begin a new text rendering frame. Rebuilds atlas if font changed. */
+  beginFrame(fontSize: number, fontFamily: string): void {
+    if (fontSize !== this.currentFontSize || fontFamily !== this.currentFontFamily) {
+      this.atlas.reset();
+      this.atlas = new GlyphAtlas(fontSize, fontFamily);
+      this.currentFontSize = fontSize;
+      this.currentFontFamily = fontFamily;
+    }
+    this.renderer.begin();
+  }
+
+  /** Queue a text string for GPU rendering. */
+  queueText(text: string, x: number, y: number, color: string, charW: number): void {
+    if (!text) return;
+    for (let i = 0; i < text.length; i++) {
+      const glyph = this.atlas.getGlyph(text[i], color);
+      if (glyph.w > 0) {
+        this.renderer.addChar(x + i * charW, y, glyph, ATLAS_SIZE);
+      }
+    }
+  }
+
+  /** Flush the GPU text frame — draws all queued characters. */
+  flushFrame(width: number, height: number): void {
+    if (this.atlas.dirty) {
+      this.renderer.uploadAtlas(this.atlas);
+      this.atlas.clearDirty();
+    }
+    this.renderer.flush(width, height);
+  }
+
+  /** Dispose GL resources. Call on editor unmount. */
+  dispose(): void {
+    this.renderer.dispose();
+  }
 }

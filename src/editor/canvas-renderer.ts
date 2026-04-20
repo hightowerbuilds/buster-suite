@@ -3,15 +3,15 @@ import type { LineToken } from "./ts-highlighter";
 import { type DisplayRow, PADDING_LEFT, computeDisplayRows } from "./engine";
 import { getCharWidth, FONT_FAMILY, measureTextWidth, colToPixel, stringDisplayWidth } from "./text-measure";
 import { type ThemePalette, drawVignette, drawGrain, applyCursorGlow, clearCursorGlow } from "../lib/theme";
-import { isWebGLActive, beginTextFrame, queueText, flushTextFrame } from "./webgl-text";
+import type { WebGLTextContext } from "./webgl-text";
 
-/** Whether to use WebGL for text rendering (GPU path) or Canvas 2D (CPU path). */
-let useGPU = false;
-
-/** Enable/disable GPU text rendering. */
-export function setGPURendering(enabled: boolean): void {
-  useGPU = enabled;
-}
+/**
+ * Set for the duration of one synchronous `renderEditor` call. Lets
+ * `monoText` and other draw helpers route into the per-editor GPU context
+ * without plumbing it through every helper's signature. JS is single-threaded
+ * and `renderEditor` never awaits, so there is no interleaving risk.
+ */
+let currentGpu: WebGLTextContext | null = null;
 
 // ── Display row memoization ──────────────────────────────────────────
 // computeDisplayRows is O(n) and called every render frame. Cache the
@@ -63,8 +63,8 @@ function monoText(
   baselineY: number,
 ) {
   if (!text) return;
-  if (useGPU && isWebGLActive()) {
-    queueText(text, x, y, color, cellW);
+  if (currentGpu?.isActive()) {
+    currentGpu.queueText(text, x, y, color, cellW);
     return;
   }
   ctx.font = font;
@@ -120,11 +120,15 @@ export interface EditorRenderParams {
   isFoldable: (line: number) => boolean;
   breakpointLines: Set<number>;
   cursorStyle: "line" | "block";
+  /** Per-editor GPU text renderer. Omit or pass null to use the Canvas 2D text path. */
+  gpu?: WebGLTextContext | null;
 }
 
 export function renderEditor(canvas: HTMLCanvasElement, params: EditorRenderParams): void {
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) return;
+
+  currentGpu = params.gpu ?? null;
 
   const dpr = (typeof globalThis !== "undefined" && globalThis.devicePixelRatio) || 1;
   const w = params.width;
@@ -166,8 +170,8 @@ export function renderEditor(canvas: HTMLCanvasElement, params: EditorRenderPara
   const p = params.palette;
 
   // Begin GPU text frame if active
-  if (useGPU && isWebGLActive()) {
-    beginTextFrame(fontSize, FONT_FAMILY);
+  if (currentGpu?.isActive()) {
+    currentGpu.beginFrame(fontSize, FONT_FAMILY);
   }
 
   // Background
@@ -274,13 +278,15 @@ export function renderEditor(canvas: HTMLCanvasElement, params: EditorRenderPara
   }
 
   // Flush GPU text frame
-  if (useGPU && isWebGLActive()) {
-    flushTextFrame(w, h);
+  if (currentGpu?.isActive()) {
+    currentGpu.flushFrame(w, h);
   }
 
   // Canvas effects: vignette + grain (drawn last, on top of everything)
   drawVignette(ctx, w, h, p);
   drawGrain(ctx, w, h, p);
+
+  currentGpu = null;
 }
 
 // --- Selection ---
