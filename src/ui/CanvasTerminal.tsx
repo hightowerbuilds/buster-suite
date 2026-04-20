@@ -99,6 +99,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   let scrollOffset = 0;
   let isComposingInput = false;
   const MAX_SCROLLBACK = 10_000;
+  const MAX_SIXEL_CACHE = 64;
   let mouseMode = "none";
   let mouseEncoding = "default";
   let bracketedPaste = false;
@@ -107,6 +108,8 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   let bellFlashUntil = 0;
   let searchVisible = false;
   let searchQuery = "";
+  let searchUseRegex = false;
+  let searchCaseSensitive = false;
   let searchMatches: { row: number; col: number; len: number }[] = [];
   let searchMatchIdx = -1;
 
@@ -189,17 +192,38 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   function runTermSearch(query: string) {
     searchMatches = [];
     if (!query) { needsRedraw = true; scheduleTermRender(); return; }
-    const q = query.toLowerCase();
+
+    let regex: RegExp | null = null;
+    if (searchUseRegex) {
+      try {
+        regex = new RegExp(query, searchCaseSensitive ? "g" : "gi");
+      } catch {
+        // Invalid regex — show no matches
+        needsRedraw = true; scheduleTermRender(); return;
+      }
+    }
+
     const allRows = [...scrollback(), ...cells];
     for (let r = 0; r < allRows.length; r++) {
       const row = allRows[r];
       if (!row) continue;
-      const text = row.map(c => c.ch).join("").toLowerCase();
-      let idx = 0;
-      while ((idx = text.indexOf(q, idx)) !== -1) {
-        // Convert allRows index to a displayable match coordinate
-        searchMatches.push({ row: r, col: idx, len: q.length });
-        idx += q.length;
+      const rawText = row.map(c => c.ch).join("");
+
+      if (regex) {
+        regex.lastIndex = 0;
+        let m: RegExpExecArray | null;
+        while ((m = regex.exec(rawText)) !== null) {
+          if (m[0].length === 0) { regex.lastIndex++; continue; }
+          searchMatches.push({ row: r, col: m.index, len: m[0].length });
+        }
+      } else {
+        const text = searchCaseSensitive ? rawText : rawText.toLowerCase();
+        const q = searchCaseSensitive ? query : query.toLowerCase();
+        let idx = 0;
+        while ((idx = text.indexOf(q, idx)) !== -1) {
+          searchMatches.push({ row: r, col: idx, len: q.length });
+          idx += q.length;
+        }
       }
     }
     searchMatchIdx = searchMatches.length > 0 ? searchMatches.length - 1 : -1;
@@ -411,6 +435,11 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
           dst[i] = src[i];
         }
         sixelBitmapCache.set(cacheKey, imgData);
+        // Evict oldest entries if cache exceeds limit
+        if (sixelBitmapCache.size > MAX_SIXEL_CACHE) {
+          const first = sixelBitmapCache.keys().next().value!;
+          sixelBitmapCache.delete(first);
+        }
       }
 
       const sx = img.col * cw;
@@ -1000,6 +1029,8 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
               outline: "none", width: "160px",
             }}
           />
+          <button onClick={() => { searchUseRegex = !searchUseRegex; runTermSearch(searchQuery); }} style={{ background: searchUseRegex ? "var(--surface2, #585b70)" : "none", border: "none", color: "var(--text, #cdd6f4)", cursor: "pointer", padding: "1px 4px", "border-radius": "2px", "font-size": "11px" }} title="Use regex">.*</button>
+          <button onClick={() => { searchCaseSensitive = !searchCaseSensitive; runTermSearch(searchQuery); }} style={{ background: searchCaseSensitive ? "var(--surface2, #585b70)" : "none", border: "none", color: "var(--text, #cdd6f4)", cursor: "pointer", padding: "1px 4px", "border-radius": "2px", "font-size": "11px" }} title="Match case">Aa</button>
           <span style={{ opacity: "0.6", "font-size": "11px" }}>
             {searchMatches.length > 0 ? `${searchMatchIdx + 1}/${searchMatches.length}` : "0/0"}
           </span>

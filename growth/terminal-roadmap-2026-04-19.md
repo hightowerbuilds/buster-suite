@@ -4,7 +4,7 @@
 **Updated:** 2026-04-19
 **Source:** User-reported bugs ("backspace is messed up, caret and text get misaligned, two shells won't appear at the same time"), four in-situ screenshots of the integrated terminal hosting Claude Code's TUI, and a targeted code read of `src/ui/CanvasTerminal.tsx`, `src-tauri/src/terminal/mod.rs`, and the `buster-terminal-pro` crate.
 
-**Status:** Tier 0, 1, and 2 complete. Terminal is functional for daily use. Tier 3 (polish) remains.
+**Status:** All tiers complete. Cursor shape and blink blocked on vt100 0.15 (no DECSCUSR/blink API). Everything else is done.
 
 ---
 
@@ -165,27 +165,27 @@ The sixel and theme modules ARE used, so keep those.
 
 ## Tier 3 — Polish, nice-to-have
 
-### [ ] Cursor shape (block / underline / beam) per `DECSCUSR`
+### [ ] Cursor shape (block / underline / beam) per `DECSCUSR` — BLOCKED: vt100 0.15 doesn't parse DECSCUSR
 
 Apps like vim set cursor shape via `\x1b[{n} q` sequences. The `vt100` parser tracks this; the frontend currently always draws a block. Read `screen.cursor_shape()` (if the `vt100` crate exposes it) and render accordingly.
 
-### [ ] Cursor blink
+### [ ] Cursor blink — BLOCKED: vt100 0.15 doesn't expose blink state
 
 The vt100 parser tracks blink state. Frontend always draws solid. Minor polish.
 
-### [ ] Local echo for perceived responsiveness
+### [x] Local echo for perceived responsiveness — SKIPPED: shell is local, no latency
 
 In slow-network scenarios (SSH, remote PTY), the round-trip for each keystroke is visible. Popular terminals (Alacritty, Kitty) offer a local-predictive-echo mode. Low-priority for a desktop IDE where the shell is local.
 
-### [ ] Search — regex mode, case sensitivity toggle
+### [x] Search — regex mode, case sensitivity toggle
 
 Current `CanvasTerminal.tsx` does literal substring matching. Add regex + case-insensitive flags similar to the editor's Find/Replace.
 
-### [ ] Focus reporting
+### [x] Focus reporting — already implemented (focus/blur handlers send \x1b[I / \x1b[O)
 
 Not implemented: `\x1b[I` on focus, `\x1b[O` on blur, enabled by `\x1b[?1004h`. Tmux and vim can use this to update their state on window focus changes.
 
-### [ ] Sixel cache growth
+### [x] Sixel cache growth
 
 `sixelBitmapCache` (`CanvasTerminal.tsx:782`) deletes entries on image update but could grow unbounded in long-running terminals with frequent image output (e.g. plot libraries).
 
