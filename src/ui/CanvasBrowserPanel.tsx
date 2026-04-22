@@ -70,14 +70,12 @@ const CanvasBrowserPanel: Component<CanvasBrowserPanelProps> = (props) => {
 
   async function createWebviewNow(url: string) {
     if (browserId || !webviewAreaRef) return;
-    const rect = webviewAreaRef.getBoundingClientRect();
-    showToast(`Creating webview: (${Math.round(rect.left)},${Math.round(rect.top)}) ${Math.round(rect.width)}x${Math.round(rect.height)}`, "info");
-    if (rect.width <= 0 || rect.height <= 0) return;
+    const r = getWebviewRect();
+    if (r.w <= 0 || r.h <= 0) return;
     try {
-      browserId = await createBrowserView(url, rect.left, rect.top, rect.width, rect.height);
-      showToast(`Webview loaded: ${url}`, "info");
+      browserId = await createBrowserView(url, r.x, r.y, r.w, r.h);
     } catch (e) {
-      showToast(`Create failed: ${e}`, "error");
+      showToast(`Browser failed: ${e}`, "error");
     }
   }
 
@@ -88,11 +86,14 @@ const CanvasBrowserPanel: Component<CanvasBrowserPanelProps> = (props) => {
 
   // ── Webview positioning ────────────────────────────────────────────
 
-  /** Tauri v2 uses fullSizeContentView on macOS — getBoundingClientRect()
-   *  coordinates map directly to the window content view. No offset needed. */
+  /** Tauri v2 child webview coordinates are relative to the window frame,
+   *  but getBoundingClientRect() is relative to the viewport below the title bar.
+   *  Add the title bar height so the webview doesn't overlap the toolbar. */
+  const TITLE_BAR_H = 28; // macOS standard title bar
+
   function getWebviewRect() {
     const rect = webviewAreaRef.getBoundingClientRect();
-    return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
+    return { x: rect.left, y: rect.top + TITLE_BAR_H, w: rect.width, h: rect.height };
   }
 
   function updateWebviewPosition() {
@@ -105,6 +106,15 @@ const CanvasBrowserPanel: Component<CanvasBrowserPanelProps> = (props) => {
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────
+
+  // Component-level cleanup — always runs on dispose, even if onMount hasn't finished
+  onCleanup(() => {
+    if (browserId) {
+      hideBrowserView(browserId).catch(() => {});
+      closeBrowserView(browserId).catch(() => {});
+      browserId = null;
+    }
+  });
 
   onMount(async () => {
     let webviewVisible = false;
@@ -141,7 +151,10 @@ const CanvasBrowserPanel: Component<CanvasBrowserPanelProps> = (props) => {
     onCleanup(() => {
       ro.disconnect();
       unlistenMove();
-      if (browserId) closeBrowserView(browserId).catch(() => {});
+      if (browserId) {
+        hideBrowserView(browserId).catch(() => {});
+        closeBrowserView(browserId).catch(() => {});
+      }
     });
 
     /** Create the child webview using the current URL signal (not a stale closure). */
