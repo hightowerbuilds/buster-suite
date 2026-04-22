@@ -81,6 +81,9 @@ export interface CommandDeps {
   updateSettings: (s: import("./ipc").AppSettings) => void;
   tabTrapping: Accessor<boolean>;
   setTabTrapping: (v: boolean) => void;
+  splitRight: () => void;
+  splitDown: () => void;
+  closeSplit: () => void;
 }
 
 const MAX_TAB_HOTKEYS = 9;
@@ -111,7 +114,7 @@ function moveTab(deps: Pick<CommandDeps, "tabs" | "activeTabId" | "switchToTab">
 export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   "file.save": "Mod+s",
   "file.openFolder": "Mod+o",
-  "file.closeTab": "Mod+w",
+  // file.closeTab has no default hotkey — Cmd+W is now view.closeSplit
   "terminal.new": "Mod+t",
   "terminal.newAlt": "Mod+`",
   "view.commandPalette": "Mod+p",
@@ -130,6 +133,9 @@ export const DEFAULT_KEYBINDINGS: Record<string, string> = {
   "editor.prevProblem": "Shift+F8",
   "view.focusNextRegion": "F6",
   "view.focusPrevRegion": "Shift+F6",
+  "view.splitRight": "Mod+d",
+  "view.splitDown": "Mod+Shift+d",
+  "view.closeSplit": "Mod+w",
   "editor.toggleTabTrapping": "Ctrl+m",
   "tabs.prev": "Mod+Shift+[",
   "tabs.next": "Mod+Shift+]",
@@ -152,19 +158,22 @@ export function createAppCommands(deps: CommandDeps): Command[] {
   return [
     { id: "file.save", label: "Save", category: "File", keybinding: "Mod+S", execute: () => deps.handleSave() },
     { id: "file.openFolder", label: "Open Folder", category: "File", keybinding: "Mod+O", execute: () => deps.changeDirectory() },
-    { id: "file.closeTab", label: "Close Tab / Close Window", category: "File", keybinding: "Mod+W", execute: () => { const id = deps.activeTabId(); if (id) deps.handleTabClose(id); else closeApp(); } },
+    { id: "file.closeTab", label: "Close Tab / Close Window", category: "File", execute: () => { const id = deps.activeTabId(); if (id) deps.handleTabClose(id); else closeApp(); } },
     { id: "editor.find", label: "Find", category: "Editor", keybinding: "Mod+F", when: () => !!deps.activeEngine(), execute: () => deps.setFindVisible(true) },
     { id: "editor.goToLine", label: "Go to Line...", category: "Editor", keybinding: "Ctrl+G", execute: () => { deps.setPaletteInitialQuery(":"); deps.setPaletteVisible(true); } },
     { id: "editor.zoomIn", label: "Zoom In", category: "View", keybinding: "Mod+=", execute: () => deps.updateSettings({ ...deps.settings(), ui_zoom: Math.min(200, deps.settings().ui_zoom + 10) }) },
     { id: "editor.zoomOut", label: "Zoom Out", category: "View", keybinding: "Mod+-", execute: () => deps.updateSettings({ ...deps.settings(), ui_zoom: Math.max(50, deps.settings().ui_zoom - 10) }) },
     { id: "editor.zoomReset", label: "Reset Zoom", category: "View", keybinding: "Mod+0", execute: () => deps.updateSettings({ ...deps.settings(), ui_zoom: 100 }) },
-    { id: "terminal.new", label: "New Terminal", category: "Terminal", keybinding: "Mod+T", execute: () => deps.createTerminalTab() },
+    { id: "terminal.new", label: "New Tab", category: "Terminal", keybinding: "Mod+T", execute: () => deps.createTerminalTab() },
     { id: "view.commandPalette", label: "Command Palette", category: "View", keybinding: "Mod+P", execute: () => { deps.setPaletteInitialQuery(""); deps.setPaletteVisible(true); } },
     { id: "view.showCommands", label: "Show All Commands", category: "View", keybinding: "Mod+Shift+P", execute: () => { deps.setPaletteInitialQuery(">"); deps.setPaletteVisible(true); } },
     { id: "view.settings", label: "Settings", category: "View", keybinding: "Mod+,", execute: () => deps.createSettingsTab() },
     { id: "view.toggleSidebar", label: "Toggle Sidebar", category: "View", keybinding: "Mod+B", execute: () => deps.setSidebarVisible(v => !v) },
     { id: "git.open", label: "Git", category: "Git", keybinding: "Mod+Shift+G", execute: () => deps.createGitTab() },
     { id: "browser.open", label: "Open Browser", category: "Browser", keybinding: "Mod+Shift+B", execute: () => deps.createBrowserTab() },
+    { id: "view.splitRight", label: "Split Right", category: "View", keybinding: "Mod+D", execute: () => deps.splitRight() },
+    { id: "view.splitDown", label: "Split Down", category: "View", keybinding: "Mod+Shift+D", execute: () => deps.splitDown() },
+    { id: "view.closeSplit", label: "Close Panel", category: "View", keybinding: "Mod+W", execute: () => deps.closeSplit() },
     { id: "editor.toggleVimMode", label: "Toggle Vim Mode", category: "Editor", execute: () => {
       const s = deps.settings();
       deps.updateSettings({ ...s, vim_mode: !s.vim_mode });
@@ -222,11 +231,7 @@ export function buildHotkeyDefinitions(
 
   add("file.save", () => deps.handleSave());
   add("file.openFolder", () => deps.changeDirectory());
-  // Cmd+W fallback for Linux/Windows (macOS handled by Tauri CloseRequested)
-  add("file.closeTab", () => {
-    const id = deps.activeTabId();
-    if (id) deps.handleTabClose(id); else closeApp();
-  });
+  // file.closeTab has no hotkey — accessible via command palette
   add("terminal.new", () => deps.createTerminalTab());
   // Ctrl+` as secondary terminal shortcut
   if (hk("terminal.newAlt")) {
@@ -236,6 +241,9 @@ export function buildHotkeyDefinitions(
   add("view.showCommands", () => { deps.setPaletteInitialQuery(">"); deps.setPaletteVisible(true); });
   add("view.settings", () => deps.createSettingsTab());
   add("view.toggleSidebar", () => deps.setSidebarVisible(v => !v));
+  add("view.splitRight", () => deps.splitRight());
+  add("view.splitDown", () => deps.splitDown());
+  add("view.closeSplit", () => deps.closeSplit());
   add("editor.find", () => { if (deps.activeEngine()) deps.setFindVisible(true); });
   add("editor.goToLine", () => { deps.setPaletteInitialQuery(":"); deps.setPaletteVisible(true); });
   add("editor.goToSymbol", () => { deps.setPaletteInitialQuery("@"); deps.setPaletteVisible(true); });
@@ -244,6 +252,9 @@ export function buildHotkeyDefinitions(
   add("editor.zoomReset", () => deps.updateSettings({ ...deps.settings(), ui_zoom: 100 }));
   add("git.open", () => deps.createGitTab());
   add("browser.open", () => deps.createBrowserTab());
+  add("view.splitRight", () => deps.splitRight());
+  add("view.splitDown", () => deps.splitDown());
+  add("view.closeSplit", () => deps.closeSplit());
   add("editor.nextProblem", () => deps.jumpToDiagnostic(1));
   add("editor.prevProblem", () => deps.jumpToDiagnostic(-1));
   add("view.focusNextRegion", () => cycleRegion(1));

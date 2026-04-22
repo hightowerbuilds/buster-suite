@@ -8,6 +8,7 @@ import type { SearchMatch, DiffHunk, AppSettings, DebugStackFrame, DebugVariable
 import type { DebugSessionState } from "./debug-events";
 import type { ThemePalette } from "./theme";
 import type { PanelCount } from "./panel-count";
+import type { PanelLayoutNode } from "../ui/panel-layout-tree";
 
 export type LspState = "inactive" | "starting" | "active" | "error" | "crashed";
 
@@ -49,6 +50,8 @@ export interface BusterStoreState {
 
   // ── Layout ──────────────────────────────────────────────
   panelCount: PanelCount;
+  splitDirection: "row" | "column";
+  layoutTree: PanelLayoutNode;
   sidebarWidth: number;
   sidebarVisible: boolean;
 

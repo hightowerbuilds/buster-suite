@@ -3,14 +3,14 @@ import { createStore } from "solid-js/store";
 import type { PanelCount } from "../lib/panel-count";
 import type { Tab } from "../lib/tab-types";
 import {
-  createPanelLayoutTree,
   normalizedSplitSizes,
+  countLeaves,
   type PanelLayoutNode,
   type PanelSplitNode,
 } from "./panel-layout-tree";
 
 interface PanelLayoutProps {
-  panelCount: PanelCount;
+  layoutTree: PanelLayoutNode;
   tabs: Tab[];
   activeTabId: string | null;
   renderPanel: (tab: Tab, isActive: boolean) => JSX.Element;
@@ -67,30 +67,12 @@ const PanelLayout: Component<PanelLayoutProps> = (props) => {
     return props.activeTabId ?? props.tabs[0]?.id ?? null;
   }
 
-  function groupedTabs(): Tab[] {
-    return props.tabs.slice(0, props.panelCount);
-  }
-
-  function activeInGroup(): boolean {
-    const current = activeTabId();
-    if (!current || props.panelCount === 1 || props.tabs.length === 0) return true;
-    return groupedTabs().some((tab) => tab.id === current);
+  function leafCount(): number {
+    return countLeaves(props.layoutTree);
   }
 
   function visibleTabs(): Tab[] {
-    if (props.tabs.length === 0) return [];
-    if (!activeInGroup()) {
-      const active = props.tabs.find((tab) => tab.id === activeTabId());
-      return active ? [active] : [];
-    }
-    return props.tabs.slice(0, props.panelCount);
-  }
-
-  function effectivePanelCount(): PanelCount {
-    if (!activeInGroup()) return 1;
-    const count = visibleTabs().length;
-    if (count <= 1) return 1;
-    return Math.min(props.panelCount, count) as PanelCount;
+    return props.tabs.slice(0, leafCount());
   }
 
   function resizeSplit(
@@ -174,10 +156,10 @@ const PanelLayout: Component<PanelLayoutProps> = (props) => {
   }
 
   return (
-    <div class="panel-layout" data-panel-count={effectivePanelCount()}>
+    <div class="panel-layout" data-panel-count={leafCount()}>
       <Show when={props.tabs.length === 0}>{props.welcome}</Show>
 
-      <Show when={props.tabs.length > 0 && effectivePanelCount() === 1}>
+      <Show when={props.tabs.length > 0 && leafCount() <= 1}>
         <For each={props.tabs}>
           {(tab) => (
             <div
@@ -190,8 +172,8 @@ const PanelLayout: Component<PanelLayoutProps> = (props) => {
         </For>
       </Show>
 
-      <Show when={props.tabs.length > 0 && effectivePanelCount() > 1}>
-        {renderNode(createPanelLayoutTree(effectivePanelCount()), "root")}
+      <Show when={props.tabs.length > 0 && leafCount() > 1}>
+        {renderNode(props.layoutTree, "root")}
       </Show>
     </div>
   );

@@ -188,7 +188,7 @@ const ConsolePanel: Component<{ active: boolean }> = (props) => {
     <div
       class="console-panel"
       style={{
-        display: props.active ? "flex" : "none",
+        display: "flex",
         "flex-direction": "column",
         width: "100%",
         height: "100%",

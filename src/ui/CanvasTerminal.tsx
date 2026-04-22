@@ -1237,7 +1237,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
-      style={{ display: props.active ? "block" : "none", cursor: isSelecting ? "text" : "default" }}
+      style={{ cursor: isSelecting ? "text" : "default" }}
       textareaProps={{
         role: "textbox",
         "aria-label": "Terminal input",

@@ -31,4 +31,6 @@ export interface Tab {
   path: string;
   dirty: boolean;
   type: TabType;
+  /** True for panels created by split — hidden from the tab bar. */
+  splitChild?: boolean;
 }

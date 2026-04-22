@@ -33,23 +33,6 @@ const [deleteConfirm, setDeleteConfirm] = createSignal<{ path: string; name: str
 
 function dismissCtxMenu() { setCtxMenu(null); }
 
-function getDisplayNameParts(name: string, isDir: boolean): { head: string; tail: string | null } {
-  if (isDir) return { head: name, tail: null };
-
-  const lastDot = name.lastIndexOf(".");
-  const extensionLength = lastDot > 0 && lastDot < name.length - 1 ? name.length - lastDot : 0;
-  const tailLength = Math.min(name.length, Math.max(8, extensionLength + 4));
-
-  if (name.length <= tailLength + 6) {
-    return { head: name, tail: null };
-  }
-
-  return {
-    head: name.slice(0, name.length - tailLength),
-    tail: name.slice(-tailLength),
-  };
-}
-
 // Listen for clicks outside to dismiss
 if (typeof document !== "undefined") {
   document.addEventListener("click", dismissCtxMenu);
@@ -74,18 +57,7 @@ export const TreeItem: Component<{
   const [renameValue, setRenameValue] = createSignal("");
 
   function renderNodeLabel() {
-    const { head, tail } = getDisplayNameParts(props.node.name, props.node.is_dir);
-    if (!tail) {
-      return <span class="tree-name" title={props.node.name}>{props.node.name}</span>;
-    }
-
-    return (
-      <span class="tree-name tree-name-split" title={props.node.name}>
-        <span class="tree-name-start">{head}</span>
-        <span class="tree-name-ellipsis" aria-hidden="true">...</span>
-        <span class="tree-name-end">{tail}</span>
-      </span>
-    );
+    return <span class="tree-name" title={props.node.name}>{props.node.name}</span>;
   }
 
   async function toggle() {

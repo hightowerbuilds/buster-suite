@@ -1,5 +1,3 @@
-import type { PanelCount } from "../lib/panel-count";
-
 export type PanelLayoutNode = PanelLeafNode | PanelSplitNode;
 export type PanelSplitDirection = "row" | "column";
 
@@ -30,11 +28,11 @@ interface RectBounds {
   height: number;
 }
 
-function leaf(tabIndex: number): PanelLeafNode {
+export function leaf(tabIndex: number): PanelLeafNode {
   return { kind: "leaf", tabIndex };
 }
 
-function split(
+export function split(
   direction: PanelSplitDirection,
   children: PanelLayoutNode[],
   sizes?: number[],
@@ -42,36 +40,89 @@ function split(
   return { kind: "split", direction, children, sizes };
 }
 
-export function createPanelLayoutTree(count: PanelCount): PanelLayoutNode {
-  switch (count) {
-    case 1:
-      return leaf(0);
-    case 2:
-      return split("row", [leaf(0), leaf(1)]);
-    case 3:
-      return split("row", [leaf(0), split("column", [leaf(1), leaf(2)])], [60, 40]);
-    case 4:
-      return split("column", [
-        split("row", [leaf(0), leaf(1)]),
-        split("row", [leaf(2), leaf(3)]),
-      ]);
-    case 5:
-      return split("row", [
-        leaf(0),
-        split("column", [
-          split("row", [leaf(1), leaf(2)]),
-          split("row", [leaf(3), leaf(4)]),
-        ]),
-      ], [36, 64]);
-    case 6:
-      return split("column", [
-        split("row", [leaf(0), leaf(1), leaf(2)]),
-        split("row", [leaf(3), leaf(4), leaf(5)]),
-      ]);
-    default:
-      return leaf(0);
-  }
+/** Count the number of leaves in the tree. */
+export function countLeaves(node: PanelLayoutNode): number {
+  if (node.kind === "leaf") return 1;
+  return node.children.reduce((sum, child) => sum + countLeaves(child), 0);
 }
+
+/**
+ * Split a leaf node in the tree, replacing it with a split containing
+ * the original leaf and a new leaf.
+ * Returns a new tree (immutable).
+ */
+export function splitLeaf(
+  node: PanelLayoutNode,
+  targetIndex: number,
+  direction: PanelSplitDirection,
+  newIndex: number,
+): PanelLayoutNode {
+  if (node.kind === "leaf") {
+    if (node.tabIndex === targetIndex) {
+      return split(direction, [leaf(targetIndex), leaf(newIndex)]);
+    }
+    return node;
+  }
+
+  // If this split has the same direction, and the target leaf is a direct child,
+  // just add the new leaf next to it instead of nesting
+  if (node.direction === direction) {
+    const idx = node.children.findIndex(
+      (c) => c.kind === "leaf" && c.tabIndex === targetIndex,
+    );
+    if (idx >= 0) {
+      const newChildren = [...node.children];
+      newChildren.splice(idx + 1, 0, leaf(newIndex));
+      return split(direction, newChildren);
+    }
+  }
+
+  // Recurse into children
+  return split(
+    node.direction,
+    node.children.map((child) => splitLeaf(child, targetIndex, direction, newIndex)),
+    node.sizes,
+  );
+}
+
+/**
+ * Remove a leaf from the tree.
+ * If a split node ends up with only one child, unwrap it.
+ * Returns null if the tree is empty after removal.
+ */
+export function removeLeaf(
+  node: PanelLayoutNode,
+  targetIndex: number,
+): PanelLayoutNode | null {
+  if (node.kind === "leaf") {
+    return node.tabIndex === targetIndex ? null : node;
+  }
+
+  const newChildren = node.children
+    .map((child) => removeLeaf(child, targetIndex))
+    .filter((child): child is PanelLayoutNode => child !== null);
+
+  if (newChildren.length === 0) return null;
+  if (newChildren.length === 1) return newChildren[0];
+  return split(node.direction, newChildren);
+}
+
+/** Shift all tabIndex values above `removedIdx` down by 1. */
+export function reindexAfterRemoval(node: PanelLayoutNode, removedIdx: number): PanelLayoutNode {
+  if (node.kind === "leaf") {
+    if (node.tabIndex > removedIdx) return leaf(node.tabIndex - 1);
+    return node;
+  }
+  return split(node.direction, node.children.map((c) => reindexAfterRemoval(c, removedIdx)));
+}
+
+/** Collect all tab indices in the tree in order. */
+export function collectTabIndices(node: PanelLayoutNode): number[] {
+  if (node.kind === "leaf") return [node.tabIndex];
+  return node.children.flatMap(collectTabIndices);
+}
+
+// ── Layout rect computation ─────────────────────────────────
 
 export function normalizedSplitSizes(node: Pick<PanelSplitNode, "children" | "sizes">): number[] {
   const childCount = node.children.length;

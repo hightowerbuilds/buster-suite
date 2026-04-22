@@ -18,7 +18,7 @@ const GitPage: Component<GitPageProps> = (props) => {
   const [conflictFile, setConflictFile] = createSignal<string | null>(null);
 
   return (
-    <div class="git-page" style={{ display: props.active ? "flex" : "none" }}>
+    <div class="git-page" style={{ display: "flex" }}>
       <div class="git-page-tabs">
         <button
           class={`git-page-tab ${view() === "status" ? "git-page-tab-active" : ""}`}

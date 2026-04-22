@@ -76,6 +76,8 @@ const INITIAL_STATE: BusterStoreState = {
   fileLoading: false,
 
   panelCount: 1 as PanelCount,
+  splitDirection: "row" as "row" | "column",
+  layoutTree: { kind: "leaf" as const, tabIndex: 0 },
   sidebarWidth: 220,
   sidebarVisible: true,
 
@@ -251,6 +253,13 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
     openDebug: actions.createDebugTab,
     openSettings: actions.createSettingsTab,
     closeTabOrWindow: () => {
+      // If there are split panels, close the last split instead of the tab
+      const hasSplits = store.tabs.some(t => t.splitChild);
+      if (hasSplits) {
+        // Dispatch a custom event that App.tsx listens for
+        window.dispatchEvent(new CustomEvent("buster-close-split"));
+        return;
+      }
       const id = store.activeTabId;
       if (id) actions.handleTabClose(id);
       else closeApp();

@@ -181,7 +181,7 @@ const CanvasBrowserPanel: Component<CanvasBrowserPanelProps> = (props) => {
       style={{
         width: "100%",
         height: "100%",
-        display: props.active ? "flex" : "none",
+        display: "flex",
         "flex-direction": "column",
         background: palette().editorBg,
       }}

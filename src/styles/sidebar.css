@@ -102,26 +102,6 @@
   text-overflow: ellipsis;
 }
 
-.tree-name-split {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  text-overflow: clip;
-}
-
-.tree-name-start {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: clip;
-}
-
-.tree-name-ellipsis,
-.tree-name-end {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
 
 /* Inline rename input */
 .tree-rename-input {

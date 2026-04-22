@@ -1,11 +1,11 @@
 import { Component, For, Show, createEffect, on } from "solid-js";
-import type { PanelCount } from "../lib/panel-count";
-import { PRIMARY_LAYOUT_OPTIONS } from "./LayoutPicker";
 
 interface CommandLineSwitchboardProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (count: PanelCount) => void;
+  onSplitRight: () => void;
+  onSplitDown: () => void;
+  onCloseSplit: () => void;
   onOpenExtensions: () => void;
   onOpenDebug: () => void;
   onOpenSettings: () => void;
@@ -14,97 +14,25 @@ interface CommandLineSwitchboardProps {
   onOpenConsole: () => void;
 }
 
-type CommandOption =
-  | {
-      key: string;
-      label: string;
-      description: string;
-      action: "layout";
-      count: PanelCount;
-    }
-  | {
-      key: string;
-      label: string;
-      description: string;
-      action: "extensions";
-    }
-  | {
-      key: string;
-      label: string;
-      description: string;
-      action: "debug";
-    }
-  | {
-      key: string;
-      label: string;
-      description: string;
-      action: "settings";
-    }
-  | {
-      key: string;
-      label: string;
-      description: string;
-      action: "git";
-    }
-  | {
-      key: string;
-      label: string;
-      description: string;
-      action: "browser";
-    }
-  | {
-      key: string;
-      label: string;
-      description: string;
-      action: "console";
-    }
+interface CommandOption {
+  key: string;
+  label: string;
+  description: string;
+  action: string;
+}
+
 const COMMAND_OPTIONS: CommandOption[] = [
-  ...PRIMARY_LAYOUT_OPTIONS.map((layout) => ({
-    key: layout.label.slice(1),
-    label: layout.label,
-    description: layout.description,
-    action: "layout" as const,
-    count: layout.count,
-  })),
-  {
-    key: "e",
-    label: "ext",
-    description: "Extensions",
-    action: "extensions" as const,
-  },
-  {
-    key: "d",
-    label: "dbg",
-    description: "Debugger",
-    action: "debug" as const,
-  },
-  {
-    key: "g",
-    label: "git",
-    description: "Git",
-    action: "git" as const,
-  },
-  {
-    key: "b",
-    label: "brw",
-    description: "Browser",
-    action: "browser" as const,
-  },
-  {
-    key: "l",
-    label: "log",
-    description: "Console",
-    action: "console" as const,
-  },
-  {
-    key: "s",
-    label: "set",
-    description: "Settings",
-    action: "settings" as const,
-  },
+  { key: "r", label: "spl", description: "Split Right", action: "splitRight" },
+  { key: "d", label: "spl", description: "Split Down", action: "splitDown" },
+  { key: "x", label: "cls", description: "Close Split", action: "closeSplit" },
+  { key: "e", label: "ext", description: "Extensions", action: "extensions" },
+  { key: "g", label: "git", description: "Git", action: "git" },
+  { key: "b", label: "brw", description: "Browser", action: "browser" },
+  { key: "l", label: "log", description: "Console", action: "console" },
+  { key: "s", label: "set", description: "Settings", action: "settings" },
 ];
 
-const VALID_COMMAND_KEYS = new Set(COMMAND_OPTIONS.map((option) => option.key));
+const VALID_COMMAND_KEYS = new Set(COMMAND_OPTIONS.map((o) => o.key));
 
 const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) => {
   let inputRef: HTMLInputElement | undefined;
@@ -130,44 +58,40 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
       props.onClose();
       return;
     }
-
     if (["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(e.key)) return;
     if (["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Home", "End", "Tab"].includes(e.key)) return;
-    if (e.key === "Enter") {
-      e.preventDefault();
-      return;
-    }
+    if (e.key === "Enter") { e.preventDefault(); return; }
 
     const key = e.key.toLowerCase();
-    if (!VALID_COMMAND_KEYS.has(key)) {
-      e.preventDefault();
-    }
+    if (!VALID_COMMAND_KEYS.has(key)) e.preventDefault();
   }
 
-  function handleInput(e: InputEvent & { currentTarget: HTMLInputElement; target: Element }) {
-    const key = e.currentTarget.value.toLowerCase().replace(/[^1-6edgbls]/g, "").slice(-1);
+  function handleInput(e: InputEvent & { currentTarget: HTMLInputElement }) {
+    const key = e.currentTarget.value.toLowerCase().replace(/[^rdxegblsf]/g, "").slice(-1);
     e.currentTarget.value = key;
     if (!key) return;
 
-    const option = COMMAND_OPTIONS.find((candidate) => candidate.key === key);
+    const option = COMMAND_OPTIONS.find((c) => c.key === key);
     if (!option) return;
 
-    if (option.action === "layout") props.onSelect(option.count);
-    else if (option.action === "extensions") props.onOpenExtensions();
-    else if (option.action === "debug") props.onOpenDebug();
-    else if (option.action === "git") props.onOpenGit();
-    else if (option.action === "browser") props.onOpenBrowser();
-    else if (option.action === "console") props.onOpenConsole();
-    else if (option.action === "settings") props.onOpenSettings();
+    switch (option.action) {
+      case "splitRight": props.onSplitRight(); props.onClose(); break;
+      case "splitDown": props.onSplitDown(); props.onClose(); break;
+      case "closeSplit": props.onCloseSplit(); props.onClose(); break;
+      case "extensions": props.onOpenExtensions(); break;
+      case "debug": props.onOpenDebug(); break;
+      case "git": props.onOpenGit(); break;
+      case "browser": props.onOpenBrowser(); break;
+      case "console": props.onOpenConsole(); break;
+      case "settings": props.onOpenSettings(); break;
+    }
   }
 
   return (
     <Show when={props.visible}>
       <div
         class="command-line-backdrop"
-        onMouseDown={(e) => {
-          if (e.target === e.currentTarget) props.onClose();
-        }}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) props.onClose(); }}
       >
         <div class="command-line-shell" role="dialog" aria-label="Command switchboard">
           <div class="command-line-bar">
@@ -180,12 +104,12 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
               autocapitalize="off"
               spellcheck={false}
               aria-label="Command line input"
-              placeholder="1-6 / E / D / G / B / L / S"
+              placeholder="R / D / X / E / G / B / L / S"
               onKeyDown={handleKeyDown}
               onInput={handleInput}
             />
           </div>
-          <div class="command-line-caption">Press 1-6 for panel layouts, E for Extensions, D for Debug, G for Git, B for Browser, L for Console, or S for Settings.</div>
+          <div class="command-line-caption">R=Split Right, D=Split Down, X=Close Split, E=Extensions, G=Git, B=Browser, L=Console, S=Settings</div>
           <div class="command-line-options" role="list">
             <For each={COMMAND_OPTIONS}>
               {(option) => (
