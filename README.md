@@ -52,39 +52,44 @@ Open Buster. The welcome screen shows an ASCII particle animation. Open a folder
 | Cmd+Shift+P | Show All Commands |
 | Ctrl+G | Go to Line |
 | Cmd+Shift+O | Go to Symbol |
+| Cmd+Shift+\ | Jump to matching bracket |
+| Ctrl+- / Ctrl+Shift+- | Navigate back / forward |
 | Cmd+T | New terminal tab |
 | Cmd+Shift+G | Git panel |
 | Cmd+B | Toggle sidebar |
 | Cmd+O | Open folder |
 | Cmd+W | Close tab |
 | Cmd+, | Settings |
+| F12 | Go to Definition |
+| Shift+F12 | Find References |
+| F2 | Rename Symbol |
 | F8 / Shift+F8 | Next / Previous diagnostic |
 | F6 / Shift+F6 | Cycle focus between regions |
 | Escape | Close overlays |
 
 ### Features
 
-**Editor** — Canvas-rendered with a TypeScript string[] buffer (SolidJS signals). Syntax highlighting via Tree-sitter for 100+ languages. Code folding, find/replace with regex, minimap, multi-cursor editing, word wrap, virtual scrolling, AI ghost text completions. Large files (50 MB+) are streamed on demand. Markdown preview mode for .md files. Image viewer for PNG, JPG, GIF, and WebP.
+**Editor** — Canvas-rendered with a TypeScript string[] buffer (SolidJS signals). Syntax highlighting via Tree-sitter for 20+ languages. Code folding, find/replace with regex, minimap, multi-cursor editing, word wrap, indent guides, bracket pair colorization, Emmet abbreviation expansion for HTML/CSS. Image viewer for PNG, JPG, GIF, and WebP.
 
-**Terminal** — Full terminal emulator rendered on canvas. VT100/ANSI parsing in Rust via the vt100 crate with sixel image support. Supports NeoVim, htop, tmux, and anything else that runs in a terminal. Mouse reporting, bracketed paste, scrollback history, configurable themes. Each terminal opens as a tab alongside your files.
+**Terminal** — Full terminal emulator rendered on canvas. VT100/ANSI parsing in Rust via the vt100 crate with sixel image support. Runs any PTY program — NeoVim, htop, tmux, etc. Mouse reporting, bracketed paste, scrollback history with search, configurable themes, crash recovery. Each terminal opens as a tab alongside your files.
 
-**Git** — 30 built-in git commands with no terminal required. Status, staging, commit (with amend), push/pull/fetch, branches, stash, remote management, blame overlay, diff gutter indicators, conflict resolution, and a canvas-rendered commit graph with colored lanes.
+**Git** — 30+ built-in git commands with no terminal required. Status, staging, commit (with amend), push/pull/fetch, branches, stash, remote management, blame overlay, diff gutter indicators, conflict resolution, and a canvas-rendered commit graph with colored lanes.
 
-**LSP** — Language server support for Rust (rust-analyzer), TypeScript/JavaScript (typescript-language-server), Python (pyright), and Go (gopls). Autocomplete, hover, signature help, code actions, inlay hints, go-to-definition, document symbols, rename refactoring, find all references, and a diagnostics panel with automatic crash recovery.
+**LSP** — Language server support for Rust (rust-analyzer), TypeScript/JavaScript (typescript-language-server), Python (pyright), and Go (gopls). Autocomplete, hover, signature help, code actions, inlay hints, go-to-definition, go-to-type-definition, document symbols, rename refactoring, find all references, and a diagnostics panel with automatic crash recovery.
 
 **Debugger** — DAP-based debugging. Set breakpoints (with conditions), launch programs, step over/into/out, pause, and inspect stack frames and variables. Works with any Debug Adapter Protocol server.
 
-**Quick Open** — Cmd+P opens a fuzzy file search across your workspace. Respects .gitignore. Prefix modes: `>` commands, `:` go-to-line, `@` symbols, `#` content search, `?` AI.
+**Quick Open** — Cmd+P opens a fuzzy file search across your workspace. Respects .gitignore. Prefix modes: `>` commands, `:` go-to-line, `@` symbols, `#` content search.
 
 **Find & Replace** — Cmd+F with regex support, match highlighting, case sensitivity toggle, replace one or replace all.
 
-**Layouts** — Panel layout modes: Tabs, Columns, Grid, Trio, Quint, Rerack, and HQ (3x2 grid). Draggable dividers between panels.
+**Layouts** — Split panels up to 6 ways with draggable dividers between panels.
 
 **File Explorer** — Sidebar with lazy-loading directory tree. Respects .gitignore. Drag and drop files between folders. Right-click context menu with rename, delete, copy path.
 
 **Session Restore** — Auto-saves every 30 seconds. Hot-exit on window close. Restores workspace, tabs, cursor positions, and dirty buffers on relaunch.
 
-**Extensions** — WASM-sandboxed extensions with capability-based permissions. Extensions can render custom UI surfaces via display list commands, control embedded browser webviews, and connect via WebSocket or HTTP SSE gateways to external services. Three working Rust extensions exist: an embedded browser with devtools, a pixel art editor, and a prompt stacker.
+**Extensions** — WASM-sandboxed extensions with capability-based permissions. Extensions can render custom UI surfaces via display list commands, control embedded browser webviews, and connect via WebSocket or HTTP SSE gateways to external services.
 
 ## Architecture
 
@@ -92,14 +97,14 @@ Open Buster. The welcome screen shows an ASCII particle animation. Open a folder
 src/                          Frontend (TypeScript + SolidJS)
   editor/                     Canvas editor, engine, Tree-sitter bridge, LSP features
   ui/                         Sidebar, tabs, terminal, git, debugger, command palette
-  lib/                        IPC bridge, TanStack Query, commands, menu handlers, session
+  lib/                        IPC bridge, commands, menu handlers, session
 
 src-tauri/src/                Backend (Rust)
   commands/                   IPC handlers (file, git, lsp, terminal, extensions, debugger, session)
   debugger/                   DAP client and session manager
   extensions/                 WASM runtime, gateway, manifest, UI surfaces
   lsp/                        Language server client, diagnostic forwarding
-  syntax/                     Tree-sitter highlighting (100+ languages)
+  syntax/                     Tree-sitter highlighting (20+ languages)
   terminal/                   VT100 state (vt100 crate) + PTY (portable-pty)
   browser.rs                  Embedded webview management
   watcher.rs                  File change detection
@@ -113,13 +118,13 @@ src-tauri/src/                Backend (Rust)
 | Desktop shell | Tauri v2 |
 | Backend | Rust |
 | Frontend framework | SolidJS |
-| Data fetching | TanStack Solid Query |
 | Text buffer | TypeScript string[] (SolidJS signals) |
-| Syntax highlighting | Tree-sitter (native Rust) |
+| Syntax highlighting | Tree-sitter (native Rust, 20+ grammars) |
 | Text measurement | Pretext (@chenglou/pretext) |
 | Terminal parsing | vt100 crate |
 | Terminal PTY | portable-pty |
 | Extension runtime | wasmtime (WASM sandbox) |
+| Emmet | emmet (npm) |
 | UI font | Courier New |
 | Editor font | JetBrains Mono |
 | Theme | Catppuccin Mocha (with custom hue rotation) |

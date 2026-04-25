@@ -287,6 +287,7 @@ export interface LspCompletionItem {
   label: string;
   detail: string | null;
   kind: string | null;
+  documentation: string | null;
 }
 
 export interface LspHoverResult {
@@ -415,6 +416,7 @@ export const lspStatus = () =>
 export interface CompletionItem {
   label: string;
   detail: string;
+  documentation?: string;
 }
 
 // Extensions

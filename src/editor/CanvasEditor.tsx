@@ -15,6 +15,7 @@ import { createInlayHints } from "./editor-inlay-hints";
 import { createEditorA11y } from "./editor-a11y";
 import { createVimHandler } from "./vim-mode";
 import { handleEditorKeyDown, type KeyboardDeps } from "./editor-keyboard";
+import { createRenameHandler } from "./editor-rename";
 import { handleEditorMouseDown, handleEditorMouseMove, handleEditorMouseUp, type MouseDeps } from "./editor-mouse";
 import { handleEditorInput, type InputDeps } from "./editor-input";
 import CanvasSurface from "../ui/CanvasSurface";
@@ -170,6 +171,21 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
   const [blameVisible, setBlameVisible] = createSignal(false);
   const [breakpointSet, setBreakpointSet] = createSignal<Set<number>>(new Set());
   const [blameData, setBlameData] = createSignal<GitBlameLine[] | null>(null);
+  const [errorPeekLine, setErrorPeekLine] = createSignal<number | null>(null);
+
+  function toggleErrorPeek() {
+    const cur = errorPeekLine();
+    const line = engine.cursor().line;
+    if (cur === line) {
+      setErrorPeekLine(null); // toggle off
+    } else {
+      // Check if there are diagnostics on this line
+      const diags = props.diagnostics ?? [];
+      if (diags.some(d => d.line === line)) {
+        setErrorPeekLine(line);
+      }
+    }
+  }
 
   function toggleBlame() {
     const next = !blameVisible();
@@ -239,8 +255,8 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     const cursorY = row * lineHeight();
     const viewTop = scrollTop();
     const viewBottom = viewTop + canvasHeight() - lineHeight();
-    if (cursorY < viewTop) setScrollTop(cursorY);
-    else if (cursorY > viewBottom) setScrollTop(cursorY - canvasHeight() + lineHeight() * 2);
+    if (cursorY < viewTop) smoothScrollTo(cursorY);
+    else if (cursorY > viewBottom) smoothScrollTo(cursorY - canvasHeight() + lineHeight() * 2);
   }
 
   // ── Subsystems (LSP-backed, still use IPC for their features) ──
@@ -299,6 +315,13 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     editSeq: () => engine.editSeq(),
   });
 
+  // ── Inline rename ──────────────────────────────────────────────
+  const rename = createRenameHandler({
+    filePath: () => props.filePath ?? null,
+    engine,
+    clearHighlightCache,
+  });
+
   // ── Accessibility parallel DOM ─────────────────────────────────
 
   const a11y = createEditorA11y({
@@ -340,6 +363,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     clearHighlightCache, ensureCursorVisible, scheduleRender, focusInput,
     hiddenInput: () => hiddenInput,
     isComposing: () => isComposing,
+    startRename: () => rename.start(),
   };
 
   const inputDeps: InputDeps = {
@@ -360,35 +384,62 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "B") {
       e.preventDefault(); toggleBlame(); return;
     }
+    // Toggle error peek (Cmd+Shift+M) — inline diagnostic detail
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "M") {
+      e.preventDefault(); toggleErrorPeek(); scheduleRender(); return;
+    }
+    // Inline rename intercepts all keys while active
+    if (rename.renameState()?.active && rename.handleKey(e)) {
+      e.preventDefault(); scheduleRender(); return;
+    }
     handleEditorKeyDown(e, keyboardDeps);
   }
 
   function handleInput() { handleEditorInput(inputDeps); }
 
-  // ── Scroll (batched per frame to prevent event accumulation) ────
+  // ── Smooth scroll animation ─────────────────────────────────────
 
-  let pendingScrollDelta = 0;
-  let scrollRafId = 0;
+  let scrollTarget = 0;    // where we're animating toward
+  let scrollAnimId = 0;    // rAF handle for the animation loop
+  const SCROLL_EASE = 0.25; // fraction of remaining distance per frame (~4 frames to settle)
+  const SCROLL_SNAP = 0.5;  // snap to target when within this many pixels
 
-  function flushScroll() {
-    scrollRafId = 0;
-    if (pendingScrollDelta === 0) return;
-    const delta = pendingScrollDelta;
-    pendingScrollDelta = 0;
+  function getMaxScroll(): number {
     const rows = getDisplayRows();
     const totalHeight = rows.length * lineHeight();
-    // Scroll past end: allow the last line to sit near the top of the viewport
-    const maxScroll = Math.max(0, totalHeight - lineHeight());
-    setScrollTop(Math.max(0, Math.min(scrollTop() + delta, maxScroll)));
+    return Math.max(0, totalHeight - lineHeight());
   }
 
-  /** Apply a wheel delta to THIS editor's scroll state. Registered with
-   *  `activeScrollTarget` when this panel is active, so every wheel event
-   *  in the app (regardless of cursor position) lands here. */
+  function clampScroll(v: number): number {
+    return Math.max(0, Math.min(v, getMaxScroll()));
+  }
+
+  function animateScroll() {
+    const current = scrollTop();
+    const diff = scrollTarget - current;
+    if (Math.abs(diff) < SCROLL_SNAP) {
+      setScrollTop(scrollTarget);
+      scrollAnimId = 0;
+      return;
+    }
+    setScrollTop(current + diff * SCROLL_EASE);
+    scrollAnimId = requestAnimationFrame(animateScroll);
+  }
+
+  function smoothScrollTo(target: number) {
+    scrollTarget = clampScroll(target);
+    if (!scrollAnimId) {
+      scrollAnimId = requestAnimationFrame(animateScroll);
+    }
+  }
+
+  /** Apply a wheel delta to THIS editor's scroll state. */
   function applyScroll(deltaY: number) {
-    pendingScrollDelta += deltaY;
-    if (!scrollRafId) {
-      scrollRafId = requestAnimationFrame(flushScroll);
+    // Accumulate on top of the current target (not current position)
+    // so rapid wheel events feel responsive
+    scrollTarget = clampScroll(scrollTarget + deltaY);
+    if (!scrollAnimId) {
+      scrollAnimId = requestAnimationFrame(animateScroll);
     }
   }
 
@@ -484,6 +535,8 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       tabSize: store.settings.tab_size || 4,
       showIndentGuides: store.settings.show_indent_guides ?? true,
       showWhitespace: store.settings.show_whitespace ?? false,
+      renameState: rename.renameState(),
+      errorPeekLine: errorPeekLine(),
     });
   }
 
@@ -538,6 +591,8 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     ghost.getPhantomTexts();
     inlayHints.getPhantomTexts();
     blameData();
+    rename.renameState();
+    errorPeekLine();
     palette();
     props.searchMatches;
     props.diagnostics;
@@ -577,7 +632,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
 
     onCleanup(() => {
       cancelAnimationFrame(animFrameId);
-      cancelAnimationFrame(scrollRafId);
+      cancelAnimationFrame(scrollAnimId);
       clearTimeout(resizeTimer);
       resizeObserver.disconnect();
       a11y.cleanup();

@@ -200,6 +200,53 @@ export function drawAutocomplete(
     const moreX = dropX + dropW - 8 - stringDisplayWidth(moreText) * moreCharW;
     monoText(ctx, moreText, moreX, dropY + dropH - itemH, "#585b70", moreFont, moreCharW, itemH, acBaselineY);
   }
+
+  // ── Documentation panel (to the right of dropdown) ──
+  const selectedItem = items[selIdx];
+  if (selectedItem?.documentation) {
+    const doc = selectedItem.documentation;
+    const docFont = `${fontSize - 1}px ${FONT_FAMILY}`;
+    const docCharW = getCharWidth(fontSize - 1);
+    const docLineH = fontSize + 4;
+    const docPad = 8;
+    const docMaxW = Math.min(320, w - dropX - dropW - 16);
+    if (docMaxW < 80) return; // not enough room
+
+    // Word-wrap documentation text
+    const maxCharsPerLine = Math.max(10, Math.floor((docMaxW - docPad * 2) / docCharW));
+    const docLines: string[] = [];
+    for (const rawLine of doc.split("\n")) {
+      if (rawLine.length <= maxCharsPerLine) {
+        docLines.push(rawLine);
+      } else {
+        let remaining = rawLine;
+        while (remaining.length > maxCharsPerLine) {
+          let breakAt = remaining.lastIndexOf(" ", maxCharsPerLine);
+          if (breakAt <= 0) breakAt = maxCharsPerLine;
+          docLines.push(remaining.slice(0, breakAt));
+          remaining = remaining.slice(breakAt).trimStart();
+        }
+        if (remaining) docLines.push(remaining);
+      }
+      if (docLines.length >= 12) break; // cap at 12 lines
+    }
+    if (docLines.length > 12) docLines.length = 12;
+
+    const docH = docLines.length * docLineH + docPad * 2;
+    const docX = dropX + dropW + 4;
+    const docY = dropY;
+    const docBaselineY = docLineH - Math.floor((fontSize - 1) * 0.35);
+
+    ctx.fillStyle = "#181825";
+    ctx.fillRect(docX, docY, docMaxW, docH);
+    ctx.strokeStyle = "#45475a";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(docX, docY, docMaxW, docH);
+
+    for (let i = 0; i < docLines.length; i++) {
+      monoText(ctx, docLines[i], docX + docPad, docY + docPad + i * docLineH, "#bac2de", docFont, docCharW, docLineH, docBaselineY);
+    }
+  }
 }
 
 // ─── Hover Tooltip ─────────────────────────────────────────────────

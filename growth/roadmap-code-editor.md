@@ -20,7 +20,7 @@ The basics that every developer assumes will just work.
 - [x] **Indent guides** — vertical lines at each indent level with active guide highlighting
 - [x] **Whitespace rendering toggle** — dots for spaces, arrows for tabs (toggle via command palette)
 - [x] **Scroll past end** — last line can scroll to top of viewport
-- [ ] **Smooth scrolling** — animated scroll for mouse wheel and keyboard navigation
+- [x] **Smooth scrolling** — ease-out animation on wheel scroll and cursor-follow navigation
 - [x] **CRLF / LF detection** — detected on file open, displayed in status bar
 
 ---
@@ -49,12 +49,12 @@ Making the editor actively helpful while coding.
 - [x] **Auto-indent on paste** — pasted multiline text reindented to match cursor context
 - [x] **Emmet support** — expand abbreviations in HTML/CSS/JSX/TSX files via Tab key
 - [x] **Snippet system expansion** — added snippets for JS/TS, Rust, Python, Go (fn, for, if, try, etc.)
-- [ ] **Snippet variables** — support `$TM_FILENAME`, `$TM_SELECTED_TEXT`, `$CLIPBOARD`, etc. in snippet bodies
-- [ ] **Inline rename** — F2 currently uses a prompt dialog; replace with an inline text edit widget at the symbol location
-- [ ] **Error peek / inline diagnostics** — expandable inline detail view for errors, not just hover
+- [x] **Snippet variables** — supports `$TM_FILENAME`, `$TM_SELECTED_TEXT`, `$CLIPBOARD`, `$CURRENT_YEAR`, `$UUID`, etc.
+- [x] **Inline rename** — F2 opens inline text field at symbol location, Enter applies, Escape cancels
+- [x] **Error peek / inline diagnostics** — Cmd+Shift+M toggles inline diagnostic detail below error line
 - [ ] **Call hierarchy** — show callers/callees for a function (LSP `callHierarchy`)
 - [ ] **Type hierarchy** — show supertypes/subtypes (LSP `typeHierarchy`)
-- [ ] **Autocomplete documentation preview** — show doc panel alongside the completion list for the selected item
+- [x] **Autocomplete documentation preview** — doc panel rendered to the right of dropdown, word-wrapped, up to 12 lines
 - [x] **Parameter hints improvement** — active parameter bolded in yellow in signature help tooltip
 - [ ] **Ghost text / inline suggestions** — infrastructure exists but is disconnected; wire up for AI or copilot-style completions
 

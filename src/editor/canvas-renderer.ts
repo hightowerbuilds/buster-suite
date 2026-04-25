@@ -97,6 +97,8 @@ export interface EditorRenderParams {
   tabSize: number;
   showIndentGuides: boolean;
   showWhitespace: boolean;
+  renameState: { active: boolean; line: number; startCol: number; endCol: number; inputText: string } | null;
+  errorPeekLine: number | null;
 }
 
 // ─── Main render orchestrator ──────────────────────────────────────
@@ -256,6 +258,8 @@ export function renderEditor(canvas: HTMLCanvasElement, params: EditorRenderPara
   drawCodeActionLightBulb(ctx, params, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, gutterW);
   drawAutocomplete(ctx, params, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, fontSize, gutterW, charW, font, w, h);
   drawDiagnostics(ctx, params.diagnostics, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, gutterW, charW);
+  drawErrorPeek(ctx, params, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, fontSize, gutterW, w);
+  drawInlineRename(ctx, params, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, fontSize, gutterW, charW, font);
   drawSignatureHelp(ctx, params, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, fontSize, gutterW, charW, font, w);
   drawCodeActionMenu(ctx, params, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, fontSize, gutterW, charW, font, w, h);
   drawHoverTooltip(ctx, params, displayRows, firstVisRow, lastVisRow, offsetY, lineHeight, fontSize, gutterW, charW, w);
@@ -795,5 +799,139 @@ function drawBracketPairs(
         break;
       }
     }
+  }
+}
+
+// ─── Error Peek (Inline Diagnostics) ────────────────────────────────
+
+function drawErrorPeek(
+  ctx: CanvasRenderingContext2D,
+  params: EditorRenderParams,
+  displayRows: DisplayRow[],
+  firstVisRow: number,
+  lastVisRow: number,
+  offsetY: number,
+  lineHeight: number,
+  fontSize: number,
+  gutterW: number,
+  w: number,
+) {
+  if (params.errorPeekLine == null) return;
+
+  // Find diagnostics on this line
+  const lineDiags = params.diagnostics.filter(d => d.line === params.errorPeekLine);
+  if (lineDiags.length === 0) return;
+
+  // Find the display row for this line
+  let peekY = -1;
+  for (let r = firstVisRow; r < lastVisRow; r++) {
+    const dr = displayRows[r];
+    if (dr.bufferLine === params.errorPeekLine) {
+      peekY = (r - firstVisRow + 1) * lineHeight + offsetY; // below the line
+      break;
+    }
+  }
+  if (peekY < 0) return;
+
+  const pad = 8;
+  const docFont = `${fontSize - 1}px ${FONT_FAMILY}`;
+  const docCharW = getCharWidth(fontSize - 1);
+  const docLineH = fontSize + 4;
+  const peekW = w - gutterW - 16;
+  const maxChars = Math.max(20, Math.floor((peekW - pad * 2) / docCharW));
+
+  // Build lines from diagnostics
+  const peekLines: { text: string; color: string }[] = [];
+  for (const diag of lineDiags) {
+    const sevLabel = diag.severity === 1 ? "error" : diag.severity === 2 ? "warning" : "info";
+    const sevColor = diag.severity === 1 ? "#f38ba8" : diag.severity === 2 ? "#f9e2af" : "#89b4fa";
+    const prefix = `[${sevLabel}] `;
+    // Word-wrap the message
+    const msgLines = (prefix + diag.message).split("\n");
+    for (const ml of msgLines) {
+      if (ml.length <= maxChars) {
+        peekLines.push({ text: ml, color: sevColor });
+      } else {
+        let remaining = ml;
+        while (remaining.length > maxChars) {
+          let breakAt = remaining.lastIndexOf(" ", maxChars);
+          if (breakAt <= 0) breakAt = maxChars;
+          peekLines.push({ text: remaining.slice(0, breakAt), color: sevColor });
+          remaining = remaining.slice(breakAt).trimStart();
+        }
+        if (remaining) peekLines.push({ text: remaining, color: sevColor });
+      }
+    }
+    if (peekLines.length >= 8) break;
+  }
+  if (peekLines.length > 8) peekLines.length = 8;
+
+  const peekH = peekLines.length * docLineH + pad * 2;
+  const peekX = gutterW + 4;
+  const baselineY = docLineH - Math.floor((fontSize - 1) * 0.35);
+
+  // Background with colored left border
+  const borderColor = lineDiags[0].severity === 1 ? "#f38ba8" : lineDiags[0].severity === 2 ? "#f9e2af" : "#89b4fa";
+  ctx.fillStyle = "#1e1e2e";
+  ctx.fillRect(peekX, peekY, peekW, peekH);
+  ctx.fillStyle = borderColor;
+  ctx.fillRect(peekX, peekY, 3, peekH);
+  ctx.strokeStyle = "#45475a";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(peekX, peekY, peekW, peekH);
+
+  for (let i = 0; i < peekLines.length; i++) {
+    const pl = peekLines[i];
+    monoText(ctx, pl.text, peekX + pad + 4, peekY + pad + i * docLineH, pl.color, docFont, docCharW, docLineH, baselineY);
+  }
+}
+
+// ─── Inline Rename Widget ───────────────────────────────────────────
+
+function drawInlineRename(
+  ctx: CanvasRenderingContext2D,
+  params: EditorRenderParams,
+  displayRows: DisplayRow[],
+  firstVisRow: number,
+  lastVisRow: number,
+  offsetY: number,
+  lineHeight: number,
+  fontSize: number,
+  gutterW: number,
+  charW: number,
+  font: string,
+) {
+  const rs = params.renameState;
+  if (!rs || !rs.active) return;
+
+  const baselineY = lineHeight - Math.floor(fontSize * 0.35);
+
+  for (let r = firstVisRow; r < lastVisRow; r++) {
+    const dr = displayRows[r];
+    if (dr.bufferLine !== rs.line) continue;
+    if (rs.startCol < dr.startCol || rs.startCol >= dr.startCol + dr.text.length) continue;
+
+    const localStart = rs.startCol - dr.startCol;
+    const x = gutterW + PADDING_LEFT + colToPixel(dr.text, localStart, charW);
+    const y = (r - firstVisRow) * lineHeight + offsetY;
+    const inputW = Math.max(rs.inputText.length + 1, rs.endCol - rs.startCol) * charW + 8;
+
+    // Input background
+    ctx.fillStyle = "#1e1e2e";
+    ctx.fillRect(x - 2, y, inputW, lineHeight);
+    ctx.strokeStyle = "#89b4fa";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - 2, y, inputW, lineHeight);
+
+    // Input text
+    ctx.font = font;
+    monoText(ctx, rs.inputText, x, y, "#cdd6f4", font, charW, lineHeight, baselineY);
+
+    // Cursor at end of input
+    const cursorX = x + rs.inputText.length * charW;
+    ctx.fillStyle = "#89b4fa";
+    ctx.fillRect(cursorX, y + 2, 2, lineHeight - 4);
+
+    break;
   }
 }

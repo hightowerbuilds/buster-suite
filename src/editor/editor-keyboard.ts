@@ -33,6 +33,7 @@ export interface KeyboardDeps {
   codeActions: CodeActionsHandle;
   ghost: GhostTextHandle;
   a11y: { announceUndo: () => void; announceRedo: () => void };
+  startRename?: () => void;
   filePath: () => string | null;
   languagePath: () => string | null;
   wordWrap: () => boolean;
@@ -237,38 +238,10 @@ export function handleEditorKeyDown(e: KeyboardEvent, deps: KeyboardDeps) {
     return;
   }
 
-  // Rename symbol (F2)
+  // Rename symbol (F2) — inline rename widget
   if (e.key === "F2" && deps.filePath()) {
     e.preventDefault();
-    const fp = deps.filePath()!;
-    const c = engine.cursor();
-    const word = engine.getLine(c.line).slice(
-      engine.getLine(c.line).slice(0, c.col).search(/\w+$/) ?? c.col,
-      c.col + (engine.getLine(c.line).slice(c.col).match(/^\w+/)?.[0]?.length ?? 0)
-    );
-    const newName = prompt("Rename symbol:", word);
-    if (newName && newName !== word) {
-      import("../lib/ipc").then(({ lspRename }) => {
-        lspRename(fp, c.line, c.col, newName).then(edits => {
-          if (edits.length > 0) {
-            const fileEdits = edits
-              .filter(e => e.file_path === fp)
-              .sort((a, b) => b.start_line !== a.start_line ? b.start_line - a.start_line : b.start_col - a.start_col);
-            engine.beginUndoGroup();
-            for (const edit of fileEdits) {
-              engine.deleteRange(
-                { line: edit.start_line, col: edit.start_col },
-                { line: edit.end_line, col: edit.end_col }
-              );
-              engine.setCursor({ line: edit.start_line, col: edit.start_col });
-              engine.insert(edit.new_text);
-            }
-            engine.endUndoGroup();
-            deps.clearHighlightCache();
-          }
-        }).catch(() => showError("Rename failed"));
-      });
-    }
+    deps.startRename?.();
     return;
   }
 

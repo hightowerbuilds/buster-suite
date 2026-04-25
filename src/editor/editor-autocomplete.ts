@@ -1,6 +1,7 @@
 import { createSignal } from "solid-js";
 import type { CompletionItem } from "../lib/ipc";
 import { lspCompletion } from "../lib/ipc";
+import { resolveSnippetVariables } from "./snippet-variables";
 
 export interface AutocompleteDeps {
   filePath: () => string | null;
@@ -89,7 +90,7 @@ export function createAutocomplete(deps: AutocompleteDeps) {
       if (!fp) return;
       try {
         const items = await lspCompletion(fp, deps.cursorLine(), deps.cursorCol());
-        showItems(items.map(i => ({ label: i.label, detail: i.detail ?? "" })));
+        showItems(items.map(i => ({ label: i.label, detail: i.detail ?? "", documentation: i.documentation ?? undefined })));
       } catch {
         dismiss();
       }
@@ -97,7 +98,13 @@ export function createAutocomplete(deps: AutocompleteDeps) {
   }
 
   /** Parse snippet text, returning plain text and all tab stops with their offsets. */
-  function parseSnippet(text: string): { plain: string; stops: { index: number; offset: number; length: number }[] } {
+  function parseSnippet(rawText: string): { plain: string; stops: { index: number; offset: number; length: number }[] } {
+    // Resolve snippet variables ($TM_FILENAME, $CLIPBOARD, etc.) before parsing tab stops
+    const text = resolveSnippetVariables(rawText, {
+      filePath: deps.filePath(),
+      lineText: deps.lines()[deps.cursorLine()] ?? "",
+      lineNumber: deps.cursorLine(),
+    });
     let plain = "";
     const stops: { index: number; offset: number; length: number }[] = [];
     let i = 0;

@@ -14,6 +14,7 @@ pub struct LspCompletionItem {
     pub label: String,
     pub detail: Option<String>,
     pub kind: Option<String>,
+    pub documentation: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -243,10 +244,19 @@ pub async fn lsp_completion(
     };
 
     for item in &completion_items {
+        // Documentation can be a string or { kind: "markdown"|"plaintext", value: "..." }
+        let documentation = item.get("documentation").and_then(|doc| {
+            if let Some(s) = doc.as_str() {
+                Some(s.to_string())
+            } else {
+                doc.get("value").and_then(|v| v.as_str()).map(String::from)
+            }
+        });
         items.push(LspCompletionItem {
             label: item.get("label").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             detail: item.get("detail").and_then(|v| v.as_str()).map(String::from),
             kind: item.get("kind").and_then(|v| v.as_u64()).map(|k| completion_kind_name(k)),
+            documentation,
         });
     }
 
