@@ -30,6 +30,7 @@ import ContextMenu, { type ContextMenuState } from "../ui/ContextMenu";
 interface CanvasEditorProps {
   initialText: string;
   filePath: string | null;
+  languagePath?: () => string | null;
   active?: boolean;
   autoFocus?: boolean;
   onEngineReady?: (engine: EditorEngine) => void;
@@ -65,6 +66,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
   const palette = () => store.palette;
   const workspaceRoot = () => store.workspaceRoot;
   const tabTrapping = () => store.tabTrapping;
+  const languagePath = () => props.languagePath?.() ?? props.filePath ?? null;
   let canvasRef: HTMLCanvasElement | undefined;
   let hiddenInput: HTMLTextAreaElement | undefined;
   let containerRef: HTMLDivElement | undefined;
@@ -196,7 +198,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
 
   function refreshHighlights() {
     const ls = engine.lines();
-    const fp = engine.filePath();
+    const fp = engine.filePath() ?? languagePath();
     if (!fp || highlightPending || !highlightDirty) return;
 
     // Compute visible viewport for scoped highlighting
@@ -329,6 +331,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
   const keyboardDeps: KeyboardDeps = {
     engine, vim, vimDeps, ac, hover, sigHelp, codeActions, ghost, a11y,
     filePath: () => props.filePath ?? null,
+    languagePath,
     wordWrap, charW, canvasWidth, canvasHeight,
     gutterW, lineHeight,
     tabTrapping, indentUnit,
@@ -341,6 +344,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
   const inputDeps: InputDeps = {
     engine, vim, ac, sigHelp, ghost,
     filePath: () => props.filePath ?? null,
+    languagePath,
     hiddenInput: () => hiddenInput,
     isComposing: () => isComposing,
     indentUnit, clearHighlightCache,
@@ -536,6 +540,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
     props.fontSize;
     props.lineNumbers;
     props.wordWrap;
+    languagePath();
     scheduleRender();
   });
 

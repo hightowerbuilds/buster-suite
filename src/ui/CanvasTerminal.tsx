@@ -10,8 +10,10 @@ import ContextMenu, { type ContextMenuState } from "./ContextMenu";
 import { TerminalGLContext } from "./terminal-webgl";
 import { mapSpecialKey, mapCtrlKey, mapAltKey, encodeSgrMouse, encodeDefaultMouse } from "./terminal-keys";
 import { searchTerminalRows, scrollToMatch } from "./terminal-search";
-import { decodeBinaryDelta, type TermCell } from "./terminal-binary";
+import { decodeBinaryDelta, type TermCell, type TermScreenDelta } from "./terminal-binary";
 import { renderWebGL as doRenderWebGL, renderCanvas2D as doRenderCanvas2D, type TermRenderState, type TermRenderDeps } from "./terminal-render";
+
+const TERMINAL_WEBGL_ENABLED = false;
 
 /** A decoded sixel image received from the Rust backend. */
 interface SixelImageData {
@@ -257,6 +259,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       if (ptyId) {
         try {
           await invoke("terminal_resize", { termId: ptyId, rows, cols });
+          await requestTerminalResync();
         } catch (e) {
           console.warn("Terminal resize failed:", e);
         }
@@ -499,13 +502,73 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     )
   );
 
+  function applyEncodedDelta(data: string) {
+    applyTerminalDelta(decodeBinaryDelta(data));
+  }
+
+  function applyTerminalDelta(d: TermScreenDelta) {
+    // Handle alt-screen transitions
+    if (d.alt_screen !== undefined && d.alt_screen !== inAltScreen) {
+      if (d.alt_screen) {
+        // Entering alt screen — start fresh alt scrollback
+        scrollbackAlt = [];
+      }
+      // Exiting alt screen — discard alt scrollback (normal scrollback preserved)
+      inAltScreen = d.alt_screen;
+      scrollOffset = 0;
+    }
+
+    // Detect scrolling and capture scrollback before applying delta
+    if (!d.full && cells.length > 1 && d.changed_rows.length > cells.length / 2) {
+      const newRow0 = d.changed_rows.find(cr => cr.index === 0)?.cells;
+      if (newRow0 && rowTextMatch(cells[1], newRow0) && cells[0]) {
+        const sb = inAltScreen ? scrollbackAlt : scrollbackNormal;
+        sb.push(cells[0]);
+        if (sb.length > MAX_SCROLLBACK) sb.shift();
+      }
+    }
+
+    // Full update on first render or resize (dimensions changed)
+    if (d.full || cells.length !== d.rows) {
+      cells = new Array(d.rows);
+    }
+    // Merge only the rows that actually changed
+    for (const cr of d.changed_rows) {
+      cells[cr.index] = cr.cells;
+    }
+    cursorRow = d.cursor_row;
+    cursorCol = d.cursor_col;
+    mouseMode = d.mouse_mode ?? "none";
+    mouseEncoding = d.mouse_encoding ?? "default";
+    bracketedPaste = d.bracketed_paste ?? false;
+
+    // OSC 2 title → update tab name
+    if (d.title) {
+      props.onTitleChange?.(props.termTabId, d.title);
+    }
+
+    // Bell flash
+    if (d.bell) {
+      bellFlashUntil = performance.now() + 150;
+    }
+
+    needsRedraw = true; scheduleTermRender();
+    termA11y.onScreenDelta(d);
+  }
+
+  async function requestTerminalResync() {
+    if (!ptyId) return;
+    const data = await invoke<string>("terminal_resync", { termId: ptyId });
+    applyEncodedDelta(data);
+  }
+
   onMount(async () => {
     if (!canvasRef || !containerRef) return;
 
     measureChar();
 
     // Try to create WebGL renderer — falls back to Canvas 2D silently
-    gpuCtx = TerminalGLContext.tryCreate(fontSize(), FONT_FAMILY);
+    gpuCtx = TERMINAL_WEBGL_ENABLED ? TerminalGLContext.tryCreate(fontSize(), FONT_FAMILY) : null;
     if (gpuCtx) {
       // Insert WebGL canvas before the 2D canvas and hide the 2D fallback
       containerRef.insertBefore(gpuCtx.canvas, canvasRef);
@@ -517,55 +580,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       "terminal-screen",
       (event) => {
         if (event.payload.term_id === ptyId) {
-          const d = decodeBinaryDelta(event.payload.data);
-
-          // Handle alt-screen transitions
-          if (d.alt_screen !== undefined && d.alt_screen !== inAltScreen) {
-            if (d.alt_screen) {
-              // Entering alt screen — start fresh alt scrollback
-              scrollbackAlt = [];
-            }
-            // Exiting alt screen — discard alt scrollback (normal scrollback preserved)
-            inAltScreen = d.alt_screen;
-            scrollOffset = 0;
-          }
-
-          // Detect scrolling and capture scrollback before applying delta
-          if (!d.full && cells.length > 1 && d.changed_rows.length > cells.length / 2) {
-            const newRow0 = d.changed_rows.find(cr => cr.index === 0)?.cells;
-            if (newRow0 && rowTextMatch(cells[1], newRow0) && cells[0]) {
-              const sb = inAltScreen ? scrollbackAlt : scrollbackNormal;
-              sb.push(cells[0]);
-              if (sb.length > MAX_SCROLLBACK) sb.shift();
-            }
-          }
-
-          // Full update on first render or resize (dimensions changed)
-          if (d.full || cells.length !== d.rows) {
-            cells = new Array(d.rows);
-          }
-          // Merge only the rows that actually changed
-          for (const cr of d.changed_rows) {
-            cells[cr.index] = cr.cells;
-          }
-          cursorRow = d.cursor_row;
-          cursorCol = d.cursor_col;
-          mouseMode = d.mouse_mode ?? "none";
-          mouseEncoding = d.mouse_encoding ?? "default";
-          bracketedPaste = d.bracketed_paste ?? false;
-
-          // OSC 2 title → update tab name
-          if (d.title) {
-            props.onTitleChange?.(props.termTabId, d.title);
-          }
-
-          // Bell flash
-          if (d.bell) {
-            bellFlashUntil = performance.now() + 150;
-          }
-
-          needsRedraw = true; scheduleTermRender();
-          termA11y.onScreenDelta(d);
+          applyEncodedDelta(event.payload.data);
         }
       }
     )) as unknown as () => void;
@@ -642,7 +657,16 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       props.onTermIdReady(props.termTabId, ptyId);
       // The initial delta from Rust fires during spawn (before ptyId is set),
       // so it gets dropped by the listener filter. Request a full resync now.
-      await invoke("terminal_resync", { termId: ptyId });
+      await requestTerminalResync();
+      window.setTimeout(() => {
+        requestTerminalResync().catch(() => {});
+      }, 150);
+      window.setTimeout(() => {
+        if (!ptyId) return;
+        invoke("terminal_write", { termId: ptyId, data: "\r" })
+          .then(() => requestTerminalResync())
+          .catch(() => {});
+      }, 250);
     } catch (err) {
       showError("Failed to spawn terminal", err);
     }

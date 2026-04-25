@@ -110,15 +110,15 @@ pub fn terminal_resync(
     app: AppHandle,
     state: State<'_, TerminalManager>,
     term_id: String,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let delta = state.resync(&term_id)?;
     let bin = encode_delta_binary(&delta);
     let b64 = STANDARD.encode(&bin);
     let _ = app.emit("terminal-screen", BinaryScreenEvent {
         term_id,
-        data: b64,
+        data: b64.clone(),
     });
-    Ok(())
+    Ok(b64)
 }
 
 #[command]

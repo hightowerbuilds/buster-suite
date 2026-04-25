@@ -1,7 +1,8 @@
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -27,6 +28,66 @@ fn with_active_theme<R>(f: impl FnOnce(&term_pro::TerminalTheme) -> R) -> R {
 pub fn set_terminal_theme(theme: term_pro::TerminalTheme) {
     let mut guard = ACTIVE_THEME.write().unwrap();
     *guard = theme;
+}
+
+fn resolve_shell_path() -> String {
+    if let Ok(shell) = std::env::var("SHELL") {
+        let shell = shell.trim();
+        if !shell.is_empty() && Path::new(shell).exists() {
+            return shell.to_string();
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if Path::new("/bin/zsh").exists() {
+            return "/bin/zsh".to_string();
+        }
+    }
+
+    for shell in ["/bin/bash", "/bin/sh"] {
+        if Path::new(shell).exists() {
+            return shell.to_string();
+        }
+    }
+
+    "/bin/sh".to_string()
+}
+
+fn shell_launch_args(shell: &str) -> &'static [&'static str] {
+    let name = Path::new(shell)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    match name.as_str() {
+        "fish" => &["--login", "--interactive"],
+        "zsh" | "bash" => {
+            if cfg!(target_os = "macos") {
+                &["-l", "-i"]
+            } else {
+                &["-i"]
+            }
+        }
+        "sh" | "dash" | "ksh" => &["-i"],
+        _ => &[],
+    }
+}
+
+fn build_shell_command(shell: &str, cwd: Option<&str>) -> CommandBuilder {
+    let mut cmd = CommandBuilder::new(shell);
+    for arg in shell_launch_args(shell) {
+        cmd.arg(arg);
+    }
+    cmd.env("SHELL", shell);
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
+    if let Some(dir) = cwd {
+        cmd.cwd(dir);
+        cmd.env("PWD", dir);
+    }
+    cmd
 }
 
 #[derive(Clone, Serialize, PartialEq)]
@@ -281,6 +342,7 @@ fn compute_delta(
 pub struct PtyInstance {
     writer: Box<dyn Write + Send>,
     _master: Box<dyn MasterPty + Send>,
+    _child: Box<dyn Child + Send + Sync>,
     parser: Arc<Mutex<vt100::Parser>>,
     /// PID of the shell process — used to kill the entire process group on close.
     child_pid: Option<u32>,
@@ -390,7 +452,7 @@ impl TerminalManager {
         on_pty_restart: impl Fn(String, u32) + Send + Sync + 'static,
     ) -> Result<String, String> {
         let pty_system = native_pty_system();
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+        let shell = resolve_shell_path();
 
         let pair = pty_system
             .openpty(PtySize {
@@ -401,16 +463,7 @@ impl TerminalManager {
             })
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
-        let mut cmd = CommandBuilder::new(&shell);
-        // Login shell on macOS (needed for path_helper env), interactive elsewhere
-        if cfg!(target_os = "macos") {
-            cmd.arg("-l");
-        }
-        cmd.env("TERM", "xterm-256color");
-        cmd.env("COLORTERM", "truecolor");
-        if let Some(ref dir) = cwd {
-            cmd.cwd(dir);
-        }
+        let cmd = build_shell_command(&shell, cwd.as_deref());
 
         let child = pair
             .slave
@@ -440,6 +493,7 @@ impl TerminalManager {
         let instance = Arc::new(Mutex::new(PtyInstance {
             writer,
             _master: pair.master,
+            _child: child,
             parser: parser.clone(),
             child_pid,
         }));
@@ -521,25 +575,20 @@ impl TerminalManager {
                                     }
                                 };
 
-                                let shell = std::env::var("SHELL")
-                                    .unwrap_or_else(|_| "/bin/zsh".to_string());
-                                let mut cmd = CommandBuilder::new(&shell);
-                                if cfg!(target_os = "macos") {
-                                    cmd.arg("-l");
-                                }
-                                cmd.env("TERM", "xterm-256color");
-                                cmd.env("COLORTERM", "truecolor");
-                                if let Some(ref dir) = cwd_for_reader {
-                                    cmd.cwd(dir);
-                                }
+                                let shell = resolve_shell_path();
+                                let cmd = build_shell_command(&shell, cwd_for_reader.as_deref());
 
-                                if pair.slave.spawn_command(cmd).is_err() {
-                                    on_pty_error_for_reader(
-                                        term_id_for_reader.clone(),
-                                        "Failed to respawn shell after crash".to_string(),
-                                    );
-                                    break;
-                                }
+                                let new_child = match pair.slave.spawn_command(cmd) {
+                                    Ok(child) => child,
+                                    Err(_) => {
+                                        on_pty_error_for_reader(
+                                            term_id_for_reader.clone(),
+                                            "Failed to respawn shell after crash".to_string(),
+                                        );
+                                        break;
+                                    }
+                                };
+                                let new_child_pid = new_child.process_id();
 
                                 let new_reader = match pair.master.try_clone_reader() {
                                     Ok(r) => r,
@@ -569,6 +618,8 @@ impl TerminalManager {
                                         .unwrap_or_else(|e| e.into_inner());
                                     inst.writer = new_writer;
                                     inst._master = pair.master;
+                                    inst._child = new_child;
+                                    inst.child_pid = new_child_pid;
                                     // Reset the vt100 parser for the new session
                                     let mut p = inst.parser.lock()
                                         .unwrap_or_else(|e| e.into_inner());
@@ -792,6 +843,49 @@ mod tests {
     fn color_to_bg_rgb_default_is_catppuccin_base() {
         let c = color_to_bg_rgb(&vt100::Color::Default);
         assert_eq!(c, [30, 30, 46]);
+    }
+
+    #[test]
+    fn terminal_spawn_accepts_shell_input() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let mgr = TerminalManager::new();
+        let (tx, rx) = mpsc::channel::<String>();
+        let tx_screen = tx.clone();
+
+        let term_id = mgr
+            .spawn(
+                24,
+                80,
+                None,
+                move |_id, delta| {
+                    let text = delta
+                        .changed_rows
+                        .iter()
+                        .flat_map(|row| row.cells.iter().map(|cell| cell.ch.as_str()))
+                        .collect::<String>();
+                    if text.contains("BUSTER_TERMINAL_READY") {
+                        let _ = tx_screen.send(text);
+                    }
+                },
+                |_id, _image| {},
+                move |_id, message| {
+                    let _ = tx.send(format!("ERROR:{message}"));
+                },
+                |_id, _count| {},
+            )
+            .expect("terminal should spawn");
+
+        mgr.write(&term_id, b"printf BUSTER_TERMINAL_READY\r")
+            .expect("terminal should accept input");
+
+        let output = rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("terminal should emit command output");
+        assert!(output.contains("BUSTER_TERMINAL_READY"), "{output}");
+
+        let _ = mgr.kill(&term_id);
     }
 
     #[test]

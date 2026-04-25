@@ -54,7 +54,14 @@ export function createTabActions(
   function createTerminalTab() {
     setStore("terminalCounter", c => c + 1);
     const tabId = `term_tab_${store.terminalCounter}`;
-    const newTab: Tab = { id: tabId, name: `Terminal ${store.terminalCounter}`, path: "", dirty: false, type: "terminal" };
+    const cwd = store.workspaceRoot ?? "";
+    const newTab: Tab = {
+      id: tabId,
+      name: `Terminal ${store.terminalCounter}`,
+      path: cwd,
+      dirty: false,
+      type: "terminal",
+    };
     setStore("tabs", [...store.tabs, newTab]);
     switchToTab(tabId);
   }
@@ -159,8 +166,9 @@ export function createTabActions(
 
     if (tab.type === "file") {
       setStore("fileTexts", produce(ft => { delete ft[tabId]; }));
-      const engine = engines.get(tabId);
-      if (engine) engine.dispose();
+      // Skip engine.dispose() — it triggers reactive updates that cause a
+      // CFRelease crash on macOS when the panel's WebGL context tears down.
+      // Just drop the reference; GC handles the rest.
       engines.delete(tabId);
       if (tab.path) unwatchFile(tab.path).catch(() => {});
       setStore("diffHunksMap", produce(dm => { delete dm[tabId]; }));

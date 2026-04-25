@@ -62,7 +62,15 @@ const App: Component = () => {
   /** Create a terminal that lives inside a split — hidden from tab bar. */
   function createSplitTerminal(): number {
     const tabId = `split_term_${Date.now()}_${store.tabs.length}`;
-    const newTab = { id: tabId, name: "Terminal", path: "", dirty: false, type: "terminal" as const, splitChild: true };
+    const cwd = store.workspaceRoot ?? "";
+    const newTab = {
+      id: tabId,
+      name: "Terminal",
+      path: cwd,
+      dirty: false,
+      type: "terminal" as const,
+      splitChild: true,
+    };
     setStore("tabs", [...store.tabs, newTab]);
     return store.tabs.length - 1; // index of the just-added tab
   }

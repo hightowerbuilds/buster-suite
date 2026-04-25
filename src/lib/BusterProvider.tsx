@@ -18,7 +18,7 @@ import { createBusterActions } from "./buster-actions";
 
 import { setWorkspaceRootIpc } from "./ipc";
 import type { AppSettings } from "./ipc";
-import { loadSessionFromDisk, closeApp } from "./session";
+import { loadSessionFromDisk } from "./session";
 import { setupFileWatcher } from "./file-watcher";
 import { setupSurfaceMeasureListener } from "./surface-measure";
 // Surface events use a different shape than the IPC SurfaceEvent type
@@ -148,10 +148,11 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
   document.addEventListener("visibilitychange", handleVisibility);
   onCleanup(() => document.removeEventListener("visibilitychange", handleVisibility));
 
-  // Red X button → save session and close the window
+  // Cmd+W fires both menu-close-tab AND CloseRequested on macOS.
+  // We only save session here — never destroy the window (causes CFRelease crash).
+  // Use Cmd+Q to quit the app.
   listen("window-close-requested", async () => {
     await actions.saveSessionNow();
-    await closeApp();
   }).then(u => menuListeners.push(u));
 
   // ── Effects ─────────────────────────────────────────────────
@@ -274,8 +275,15 @@ const BusterProvider: Component<{ children: JSX.Element }> = (props) => {
         } else if (stab.type === "terminal") {
           setStore("terminalCounter", c => c + 1);
           const tabId = `term_tab_${store.terminalCounter}`;
+          const cwd = stab.path || session.workspace_root || "";
           setStore("tabs", produce(tabs => {
-            tabs.push({ id: tabId, name: stab.name || "Terminal", path: "", dirty: false, type: "terminal" });
+            tabs.push({
+              id: tabId,
+              name: `Terminal ${store.terminalCounter}`,
+              path: cwd,
+              dirty: false,
+              type: "terminal",
+            });
           }));
         } else if (["settings", "git", "extensions", "debug", "explorer"].includes(stab.type)) {
           setStore("tabs", produce(tabs => {

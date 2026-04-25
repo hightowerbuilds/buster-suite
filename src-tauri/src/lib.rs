@@ -173,14 +173,14 @@ pub fn run() {
                 }
             }
 
-            // Intercept window close to allow frontend to persist session
+            // Block ALL window close attempts. Cmd+W closes tabs via the menu
+            // accelerator; Cmd+Q terminates the process. This is diagnostic:
+            // if the app still closes on Cmd+W, prevent_close() isn't working.
             let main_window = app.get_webview_window("main");
             if let Some(window) = main_window {
-                let app_handle = app.handle().clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = app_handle.emit("window-close-requested", ());
                     }
                 });
             }

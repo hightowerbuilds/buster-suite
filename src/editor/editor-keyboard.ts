@@ -3,7 +3,7 @@
  * Extracted from CanvasEditor.tsx to keep the component lean.
  */
 
-import { extname, basename } from "buster-path";
+import { basename } from "buster-path";
 import type { EditorEngine } from "./engine";
 import type { VimHandler } from "./vim-mode";
 import type { createAutocomplete } from "./editor-autocomplete";
@@ -11,6 +11,9 @@ import type { createHover } from "./editor-hover";
 import type { createSignatureHelp } from "./editor-signature";
 import type { createCodeActions } from "./editor-code-actions";
 import type { createGhostText } from "./editor-ghost-text";
+import { insertEditorText } from "./editor-input";
+import { expandLanguageSnippetBeforeCursor } from "./language-snippets";
+import { getAutoClosePairMap, getLanguageDefinitionForPath } from "./language-registry";
 import { showError } from "../lib/notify";
 
 type AutocompleteHandle = ReturnType<typeof createAutocomplete>;
@@ -30,6 +33,7 @@ export interface KeyboardDeps {
   ghost: GhostTextHandle;
   a11y: { announceUndo: () => void; announceRedo: () => void };
   filePath: () => string | null;
+  languagePath: () => string | null;
   wordWrap: () => boolean;
   charW: () => number;
   canvasWidth: () => number;
@@ -46,8 +50,6 @@ export interface KeyboardDeps {
   hiddenInput: () => HTMLTextAreaElement | undefined;
   isComposing: () => boolean;
 }
-
-const BRACKET_PAIRS: Record<string, string> = { "(": ")", "[": "]", "{": "}", '"': '"', "'": "'", "`": "`" };
 
 export function handleEditorKeyDown(e: KeyboardEvent, deps: KeyboardDeps) {
   const { engine, vim, vimDeps, ac, hover, sigHelp, codeActions, ghost, a11y } = deps;
@@ -198,11 +200,8 @@ export function handleEditorKeyDown(e: KeyboardEvent, deps: KeyboardDeps) {
   // Toggle line comment (Cmd+/)
   if (isMod && e.key === "/") {
     e.preventDefault();
-    const fp = deps.filePath();
-    const ext = fp ? extname(fp).slice(1) : "";
-    const prefix = (ext === "py" || ext === "sh" || ext === "bash" || ext === "zsh" || ext === "yml" || ext === "yaml" || ext === "toml") ? "#"
-      : (ext === "css") ? "//"
-      : "//";
+    const language = getLanguageDefinitionForPath(deps.languagePath());
+    const prefix = language?.comments?.line ?? "//";
     engine.toggleLineComment(prefix);
     deps.clearHighlightCache();
     return;
@@ -362,7 +361,8 @@ export function handleEditorKeyDown(e: KeyboardEvent, deps: KeyboardDeps) {
       const bLine = engine.getLine(bCur.line);
       const charBefore = bLine[bCur.col - 1];
       const charAfter = bLine[bCur.col];
-      if (charBefore && charAfter && BRACKET_PAIRS[charBefore] === charAfter) {
+      const bracketPairs = getAutoClosePairMap(deps.languagePath());
+      if (charBefore && charAfter && bracketPairs[charBefore] === charAfter) {
         engine.deleteRange({ line: bCur.line, col: bCur.col - 1 }, { line: bCur.line, col: bCur.col + 1 });
         deps.clearHighlightCache(); ac.trigger();
         return;
@@ -407,6 +407,24 @@ export function handleEditorKeyDown(e: KeyboardEvent, deps: KeyboardDeps) {
       deps.clearHighlightCache();
       return;
     }
+    if (!e.shiftKey && !engine.sel()) {
+      const snippet = expandLanguageSnippetBeforeCursor({
+        languagePath: deps.languagePath(),
+        lines: engine.lines(),
+        cursor: engine.cursor(),
+        indentUnit: deps.indentUnit(),
+      });
+      if (snippet) {
+        engine.beginUndoGroup();
+        engine.deleteRange(snippet.from, snippet.to);
+        engine.insert(snippet.text);
+        engine.setCursor(snippet.cursor);
+        engine.endUndoGroup();
+        deps.clearHighlightCache();
+        deps.ensureCursorVisible();
+        return;
+      }
+    }
     if (e.shiftKey) {
       engine.outdentLines(deps.settings().tab_size || 4);
     } else if (engine.sel()) {
@@ -415,6 +433,20 @@ export function handleEditorKeyDown(e: KeyboardEvent, deps: KeyboardDeps) {
       engine.insert(deps.indentUnit());
     }
     deps.clearHighlightCache();
+  } else if (!isModifier && !isMod && !extend && !e.altKey && e.key.length === 1) {
+    e.preventDefault();
+    const hi = deps.hiddenInput();
+    if (hi) hi.value = "";
+    insertEditorText(e.key, {
+      engine,
+      ac,
+      sigHelp,
+      ghost,
+      languagePath: deps.languagePath,
+      indentUnit: deps.indentUnit,
+      clearHighlightCache: deps.clearHighlightCache,
+    });
+    requestAnimationFrame(() => deps.focusInput());
   } else if (!isModifier && !isMod && !extend) {
     engine.clearSelection();
   }

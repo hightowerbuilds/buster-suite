@@ -29,9 +29,8 @@ registerPanel("terminal", {
     <CanvasTerminal
       termTabId={tab.id}
       active={isActive()}
-      cwd={deps.workspaceRoot() ?? undefined}
+      cwd={tab.path || deps.workspaceRoot() || undefined}
       onTermIdReady={deps.handleTermIdReady}
-      onTitleChange={deps.handleTermTitleChange}
       autoFocus={tab.id === deps.activeTabId()}
     />
   ),

@@ -24,15 +24,15 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
   const panelCache = new Map<string, { element: JSX.Element; dispose: () => void; setActive: (value: boolean) => void }>();
   const [blogModeSet, setBlogModeSet] = createSignal<Set<string>>(new Set());
 
-  // Clean up cached panels when tabs are closed.
-  // Defer dispose to avoid macOS CFRelease crash from synchronous WebGL
-  // teardown during the SolidJS reactive update cycle.
+  // Remove closed tabs from the panel cache.
+  // We intentionally do NOT call cached.dispose() — on macOS/WKWebView,
+  // disposing the SolidJS root triggers WebGL teardown which crashes with
+  // CFRelease(NULL). Instead we just drop the reference and let GC handle it.
   createEffect(() => {
     const currentIds = new Set(deps.tabs().map(t => t.id));
-    for (const [id, cached] of panelCache) {
+    for (const [id] of panelCache) {
       if (!currentIds.has(id)) {
         panelCache.delete(id);
-        setTimeout(() => cached.dispose(), 0);
       }
     }
   });
@@ -87,6 +87,8 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
     const existingEngine = deps.engineMap.get(tab.id);
     const initialText = existingEngine ? existingEngine.getText() : deps.getFileTextForTab(tab.id);
     if (initialText === null) return <div class="panel-empty" />;
+    const currentTab = () => deps.tabs().find(t => t.id === tab.id) ?? tab;
+    const languagePath = () => currentTab().path || currentTab().name || null;
 
     const isMd = tab.path?.endsWith(".md") || tab.path?.endsWith(".markdown");
     const blogActive = () => blogModeSet().has(tab.id);
@@ -125,6 +127,7 @@ export function createPanelRenderer(deps: PanelRendererDeps) {
           <CanvasEditor
             initialText={initialText}
             filePath={tab.path || null}
+            languagePath={languagePath}
             active={isActive()}
             autoFocus={tab.id === deps.activeTabId()}
             onEngineReady={(engine) => { deps.engineMap.set(tab.id, engine); }}

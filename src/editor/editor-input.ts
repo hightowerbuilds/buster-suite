@@ -1,15 +1,16 @@
 /**
  * Text input handler for the canvas editor.
- * Handles bracket auto-close, Emmet expansion, auto-outdent, and smart quotes.
+ * Handles bracket auto-close, language snippets, auto-outdent, and smart quotes.
  * Extracted from CanvasEditor.tsx.
  */
 
-import { extname } from "buster-path";
 import type { EditorEngine } from "./engine";
 import type { VimHandler } from "./vim-mode";
 import type { createAutocomplete } from "./editor-autocomplete";
 import type { createSignatureHelp } from "./editor-signature";
 import type { createGhostText } from "./editor-ghost-text";
+import { expandTypedLanguageSnippet } from "./language-snippets";
+import { getAutoClosePairMap, getClosingPairSet } from "./language-registry";
 
 type AutocompleteHandle = ReturnType<typeof createAutocomplete>;
 type SignatureHelpHandle = ReturnType<typeof createSignatureHelp>;
@@ -22,14 +23,22 @@ export interface InputDeps {
   sigHelp: SignatureHelpHandle;
   ghost: GhostTextHandle;
   filePath: () => string | null;
+  languagePath: () => string | null;
   hiddenInput: () => HTMLTextAreaElement | undefined;
   isComposing: () => boolean;
   indentUnit: () => string;
   clearHighlightCache: () => void;
 }
 
-const BRACKET_PAIRS: Record<string, string> = { "(": ")", "[": "]", "{": "}", '"': '"', "'": "'", "`": "`" };
-const CLOSE_BRACKETS = new Set([")", "]", "}"]);
+export interface TextInsertionDeps {
+  engine: EditorEngine;
+  ac: AutocompleteHandle;
+  sigHelp: SignatureHelpHandle;
+  ghost: GhostTextHandle;
+  languagePath: () => string | null;
+  indentUnit: () => string;
+  clearHighlightCache: () => void;
+}
 
 export function handleEditorInput(deps: InputDeps) {
   const { engine, vim, ac, sigHelp, ghost } = deps;
@@ -42,33 +51,30 @@ export function handleEditorInput(deps: InputDeps) {
   // In Vim Normal/Visual mode, suppress text insertion
   if (vim.enabled() && vim.mode() !== "insert") return;
 
-  // Emmet-style HTML boilerplate
-  if (text === "!" && deps.filePath()) {
-    const ext = extname(deps.filePath()!).toLowerCase();
-    if ((ext === ".html" || ext === ".htm") && engine.lineCount() <= 1 && engine.getLine(0).trim() === "") {
-      const unit = deps.indentUnit();
-      const boilerplate =
-`<!DOCTYPE html>
-<html lang="en">
-<head>
-${unit}<meta charset="UTF-8">
-${unit}<meta name="viewport" content="width=device-width, initial-scale=1.0">
-${unit}<title>Document</title>
-</head>
-<body>
-${unit}
-</body>
-</html>`;
-      engine.insert(boilerplate);
-      engine.setCursor({ line: 8, col: unit.length });
-      deps.clearHighlightCache();
-      return;
-    }
+  insertEditorText(text, deps);
+}
+
+export function insertEditorText(text: string, deps: TextInsertionDeps) {
+  const { engine, ac, sigHelp, ghost } = deps;
+
+  const typedSnippet = expandTypedLanguageSnippet(text, {
+    languagePath: deps.languagePath(),
+    lines: engine.lines(),
+    cursor: engine.cursor(),
+    indentUnit: deps.indentUnit(),
+  });
+  if (typedSnippet) {
+    engine.insert(typedSnippet.text);
+    engine.setCursor(typedSnippet.cursor);
+    deps.clearHighlightCache();
+    return;
   }
 
   // Auto-close brackets and quotes
-  if (text.length === 1 && BRACKET_PAIRS[text]) {
-    const closing = BRACKET_PAIRS[text];
+  const bracketPairs = getAutoClosePairMap(deps.languagePath());
+  const closeBrackets = getClosingPairSet(deps.languagePath());
+  if (text.length === 1 && bracketPairs[text]) {
+    const closing = bracketPairs[text];
     const isQuote = text === '"' || text === "'" || text === "`";
     const line = engine.getLine(engine.cursor().line);
     const col = engine.cursor().col;
@@ -82,7 +88,7 @@ ${unit}
       }
     }
 
-    if (CLOSE_BRACKETS.has(text) && charAfter === text) {
+    if (closeBrackets.has(text) && charAfter === text) {
       engine.moveCursor("right");
       deps.clearHighlightCache();
       return;
@@ -100,7 +106,7 @@ ${unit}
   }
 
   // Skip over closing bracket
-  if (text.length === 1 && CLOSE_BRACKETS.has(text)) {
+  if (text.length === 1 && closeBrackets.has(text)) {
     const line = engine.getLine(engine.cursor().line);
     const charAfter = line[engine.cursor().col] ?? "";
     if (charAfter === text) {
