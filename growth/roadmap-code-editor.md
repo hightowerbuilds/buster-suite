@@ -56,7 +56,7 @@ Making the editor actively helpful while coding.
 - [ ] **Type hierarchy** — show supertypes/subtypes (LSP `typeHierarchy`)
 - [x] **Autocomplete documentation preview** — doc panel rendered to the right of dropdown, word-wrapped, up to 12 lines
 - [x] **Parameter hints improvement** — active parameter bolded in yellow in signature help tooltip
-- [ ] **Ghost text / inline suggestions** — infrastructure exists but is disconnected; wire up for AI or copilot-style completions
+- [x] **Ghost text / inline suggestions** — streaming AI completions via Ollama (local) or Anthropic/OpenAI (cloud)
 
 ---
 

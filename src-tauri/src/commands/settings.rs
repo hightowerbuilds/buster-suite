@@ -53,7 +53,25 @@ pub struct AppSettings {
     pub show_indent_guides: bool,
     #[serde(default)]
     pub show_whitespace: bool,
+    // AI Completion
+    #[serde(default)]
+    pub ai_completion_enabled: bool,
+    #[serde(default = "default_ai_provider")]
+    pub ai_provider: String,
+    #[serde(default)]
+    pub ai_api_key: String,
+    #[serde(default = "default_ai_model")]
+    pub ai_model: String,
+    #[serde(default = "default_ollama_model")]
+    pub ai_local_model: String,
+    #[serde(default = "default_ollama_url")]
+    pub ai_ollama_url: String,
 }
+
+fn default_ai_provider() -> String { "ollama".to_string() }
+fn default_ai_model() -> String { "claude-haiku-4-5-20250514".to_string() }
+fn default_ollama_model() -> String { "gemma3:4b".to_string() }
+fn default_ollama_url() -> String { "http://localhost:11434".to_string() }
 
 fn default_theme_mode() -> String { "dark".to_string() }
 fn default_hue() -> i32 { -1 }
@@ -90,6 +108,12 @@ impl Default for AppSettings {
             blog_theme: "normal".to_string(),
             show_indent_guides: true,
             show_whitespace: false,
+            ai_completion_enabled: false,
+            ai_provider: "ollama".to_string(),
+            ai_api_key: String::new(),
+            ai_model: "claude-haiku-4-5-20250514".to_string(),
+            ai_local_model: "gemma3:4b".to_string(),
+            ai_ollama_url: "http://localhost:11434".to_string(),
         }
     }
 }

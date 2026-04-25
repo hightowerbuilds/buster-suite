@@ -13,7 +13,8 @@ export type TabType =
   | "search-results"
   | "surface"
   | "browser"
-  | "console";
+  | "console"
+  | "ai";
 
 const IMAGE_EXTENSIONS = new Set([
   "png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "svg", "avif", "tiff", "tif",

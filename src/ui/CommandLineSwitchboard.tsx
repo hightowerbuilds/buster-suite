@@ -9,6 +9,7 @@ interface CommandLineSwitchboardProps {
   onOpenGit: () => void;
   onOpenBrowser: () => void;
   onOpenConsole: () => void;
+  onOpenAi: () => void;
 }
 
 interface CommandOption {
@@ -18,6 +19,7 @@ interface CommandOption {
 }
 
 const COMMAND_OPTIONS: CommandOption[] = [
+  { key: "a", description: "AI", action: "ai" },
   { key: "e", description: "Extensions", action: "extensions" },
   { key: "g", description: "Git", action: "git" },
   { key: "b", description: "Browser", action: "browser" },
@@ -60,7 +62,7 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
   }
 
   function handleInput(e: InputEvent & { currentTarget: HTMLInputElement }) {
-    const key = e.currentTarget.value.toLowerCase().replace(/[^egblsf]/g, "").slice(-1);
+    const key = e.currentTarget.value.toLowerCase().replace(/[^aegblsf]/g, "").slice(-1);
     e.currentTarget.value = key;
     if (!key) return;
 
@@ -68,6 +70,7 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
     if (!option) return;
 
     switch (option.action) {
+      case "ai": props.onOpenAi(); break;
       case "extensions": props.onOpenExtensions(); break;
       case "debug": props.onOpenDebug(); break;
       case "git": props.onOpenGit(); break;
@@ -94,12 +97,12 @@ const CommandLineSwitchboard: Component<CommandLineSwitchboardProps> = (props) =
               autocapitalize="off"
               spellcheck={false}
               aria-label="Command line input"
-              placeholder="E / G / B / L / S"
+              placeholder="A / E / G / B / L / S"
               onKeyDown={handleKeyDown}
               onInput={handleInput}
             />
           </div>
-          <div class="command-line-caption">E=Extensions, G=Git, B=Browser, L=Console, S=Settings</div>
+          <div class="command-line-caption">A=AI, E=Extensions, G=Git, B=Browser, L=Console, S=Settings</div>
           <div class="command-line-options" role="list">
             <For each={COMMAND_OPTIONS}>
               {(option) => (

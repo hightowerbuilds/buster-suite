@@ -53,6 +53,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   blog_theme: "normal",
   show_indent_guides: true,
   show_whitespace: false,
+  ai_completion_enabled: false,
+  ai_provider: "ollama",
+  ai_api_key: "",
+  ai_model: "claude-haiku-4-5-20250514",
+  ai_local_model: "gemma3:4b",
+  ai_ollama_url: "http://localhost:11434",
 };
 
 const RECENT_FILES_KEY = "buster-recent-files";

@@ -12,3 +12,4 @@ pub mod surface;
 pub mod keymap;
 pub mod filebuffer;
 pub mod debugger;
+pub mod ai_completion;

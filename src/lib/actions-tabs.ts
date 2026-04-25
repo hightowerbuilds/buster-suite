@@ -80,6 +80,7 @@ export function createTabActions(
   function createDebugTab() { openSingletonTab("debug", "debug_tab", "Debug"); }
   function createProblemsTab() { openSingletonTab("problems", "problems_tab", "Problems"); }
   function createConsoleTab() { openSingletonTab("console", "console_tab", "Console"); }
+  function createAiTab() { openSingletonTab("ai", "ai_tab", "AI"); }
 
   function createBrowserTab(url?: string) {
     const tabId = `browser_tab_${Date.now()}`;
@@ -202,7 +203,7 @@ export function createTabActions(
   return {
     switchToTab, createNewFile, createTerminalTab,
     createGitTab, createSettingsTab, createExtensionsTab,
-    createDebugTab, createProblemsTab, createConsoleTab,
+    createDebugTab, createProblemsTab, createConsoleTab, createAiTab,
     createBrowserTab, popOutSidebar,
     handleTermIdReady, handleTermTitleChange,
     handleTabClose, handleExternalChangeResult, handleDirtyCloseResult,

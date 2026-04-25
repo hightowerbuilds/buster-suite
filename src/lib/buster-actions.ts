@@ -138,6 +138,7 @@ export function createBusterActions(deps: ActionDeps): BusterActions & {
     createProblemsTab: tabs.createProblemsTab,
     createBrowserTab: tabs.createBrowserTab,
     createConsoleTab: tabs.createConsoleTab,
+    createAiTab: tabs.createAiTab,
     popOutSidebar: tabs.popOutSidebar,
     handleTermIdReady: tabs.handleTermIdReady,
     handleTermTitleChange: tabs.handleTermTitleChange,

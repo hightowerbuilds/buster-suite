@@ -305,6 +305,7 @@ const CanvasEditor: Component<CanvasEditorProps> = (props) => {
       const ls = engine.lines();
       return { lines: ls, total_lines: ls.length, file_path: engine.filePath(), edit_seq: engine.editSeq() };
     },
+    settings: () => store.settings,
   });
 
   const inlayHints = createInlayHints({

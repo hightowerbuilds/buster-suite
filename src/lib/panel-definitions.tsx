@@ -21,6 +21,7 @@ import ImageViewer from "../ui/ImageViewer";
 import DisplayListSurface from "../ui/DisplayListSurface";
 import CanvasBrowserPanel from "../ui/CanvasBrowserPanel";
 import ConsolePanel from "../ui/ConsolePanel";
+import AiSettingsPanel from "../ui/AiSettingsPanel";
 
 // ── Terminal ─────────────────────────────────────────────────────────
 
@@ -162,4 +163,15 @@ registerPanel("browser", {
 
 registerPanel("console", {
   render: (_tab, isActive) => <ConsolePanel active={isActive()} />,
+});
+
+// ── AI Settings ─────────────────────────────────────────────────────
+
+registerPanel("ai", {
+  render: (_tab, _isActive, deps) => (
+    <AiSettingsPanel
+      settings={deps.settings()}
+      onChange={deps.updateSettings}
+    />
+  ),
 });

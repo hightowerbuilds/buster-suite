@@ -38,6 +38,7 @@ pub fn run() {
         .manage(filebuffer::FileBufferManager::new())
         .manage(DebugManager::new())
         .manage(tokio::sync::Mutex::new(Option::<browser_module::BrowserModule>::None))
+        .manage(commands::ai_completion::AiCompletionState::new())
         .setup(|app| {
             // Build the native menu bar
             let change_dir = MenuItem::with_id(app, "change_directory", "Change Directory", true, None::<&str>)?;
@@ -402,6 +403,9 @@ pub fn run() {
             commands::filebuffer::large_file_read_lines,
             commands::filebuffer::large_file_line_count,
             commands::filebuffer::large_file_close,
+            // AI Completion
+            commands::ai_completion::ai_completion_request,
+            commands::ai_completion::ai_completion_cancel,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

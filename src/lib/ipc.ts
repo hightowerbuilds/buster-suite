@@ -85,6 +85,12 @@ export interface AppSettings {
   blog_theme: string;
   show_indent_guides: boolean;
   show_whitespace: boolean;
+  ai_completion_enabled: boolean;
+  ai_provider: string;
+  ai_api_key: string;
+  ai_model: string;
+  ai_local_model: string;
+  ai_ollama_url: string;
 }
 
 export const loadSettings = () =>

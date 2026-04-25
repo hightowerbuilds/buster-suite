@@ -177,6 +177,11 @@ const App: Component = () => {
     closeCommandLine();
   }
 
+  function handleCommandLineAi() {
+    actions.createAiTab();
+    closeCommandLine();
+  }
+
   // ── Command registry + keyboard handler ─────────────────
 
   const commandDeps: CommandDeps = {
@@ -453,6 +458,7 @@ const App: Component = () => {
         onOpenBrowser={handleCommandLineBrowser}
         onOpenConsole={handleCommandLineConsole}
         onOpenSettings={handleCommandLineSettings}
+        onOpenAi={handleCommandLineAi}
       />
       <CommandPalette
         visible={store.paletteVisible}

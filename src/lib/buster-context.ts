@@ -43,6 +43,7 @@ export interface BusterActions {
   createProblemsTab(): void;
   createBrowserTab(): void;
   createConsoleTab(): void;
+  createAiTab(): void;
   popOutSidebar(): void;
   handleTermIdReady(tabId: string, ptyId: string): void;
   handleTermTitleChange(tabId: string, title: string): void;
