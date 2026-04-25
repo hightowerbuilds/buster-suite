@@ -9,6 +9,7 @@ const DEBOUNCE_MS: u64 = 500;
 
 pub struct FileWatcher {
     watcher: Mutex<Option<RecommendedWatcher>>,
+    watched_paths: Arc<Mutex<HashSet<String>>>,
     suppress_set: Arc<Mutex<HashSet<String>>>,
     debounce_map: Arc<Mutex<HashMap<String, Instant>>>,
     event_tx: mpsc::Sender<String>,
@@ -20,6 +21,7 @@ impl FileWatcher {
         let (tx, rx) = mpsc::channel();
         Self {
             watcher: Mutex::new(None),
+            watched_paths: Arc::new(Mutex::new(HashSet::new())),
             suppress_set: Arc::new(Mutex::new(HashSet::new())),
             debounce_map: Arc::new(Mutex::new(HashMap::new())),
             event_tx: tx,
@@ -89,27 +91,57 @@ impl FileWatcher {
 
     /// Add a path to watch.
     pub fn watch(&self, path: &str) -> Result<(), String> {
+        if path.trim().is_empty() {
+            return Err("Cannot watch an empty path".into());
+        }
+
         let canonical = std::fs::canonicalize(path)
             .map_err(|e| format!("Cannot watch {}: {}", path, e))?;
+        let canonical_key = canonical.to_string_lossy().to_string();
+
+        if self.watched_paths.lock().unwrap().contains(&canonical_key) {
+            return Ok(());
+        }
 
         if let Some(ref mut w) = *self.watcher.lock().unwrap() {
             w.watch(&canonical, RecursiveMode::NonRecursive)
                 .map_err(|e| format!("Watch failed: {}", e))?;
         }
+        self.watched_paths.lock().unwrap().insert(canonical_key);
         Ok(())
     }
 
     /// Remove a path from watch.
     pub fn unwatch(&self, path: &str) -> Result<(), String> {
-        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| Path::new(path).to_path_buf());
-
-        if let Some(ref mut w) = *self.watcher.lock().unwrap() {
-            let _ = w.unwatch(&canonical); // Ignore errors (path may already be unwatched)
+        if path.trim().is_empty() {
+            return Ok(());
         }
 
-        // Clean up debounce entry
+        let canonical_key = match std::fs::canonicalize(path) {
+            Ok(path) => path.to_string_lossy().to_string(),
+            Err(_) if Path::new(path).is_absolute() => path.to_string(),
+            Err(_) => return Ok(()),
+        };
+
+        let was_watched = self.watched_paths
+            .lock()
+            .unwrap()
+            .remove(&canonical_key);
+
+        if !was_watched {
+            return Ok(());
+        }
+
+        if let Some(ref mut w) = *self.watcher.lock().unwrap() {
+            let _ = w.unwatch(Path::new(&canonical_key)); // Ignore errors (path may already be unwatched)
+        }
+
+        // Clean up debounce and suppression entries.
         if let Ok(mut map) = self.debounce_map.lock() {
-            map.remove(&canonical.to_string_lossy().to_string());
+            map.remove(&canonical_key);
+        }
+        if let Ok(mut set) = self.suppress_set.lock() {
+            set.remove(&canonical_key);
         }
         Ok(())
     }

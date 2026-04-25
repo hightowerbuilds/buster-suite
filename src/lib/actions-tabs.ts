@@ -162,7 +162,7 @@ export function createTabActions(
       const engine = engines.get(tabId);
       if (engine) engine.dispose();
       engines.delete(tabId);
-      unwatchFile(tab.path).catch(() => {});
+      if (tab.path) unwatchFile(tab.path).catch(() => {});
       setStore("diffHunksMap", produce(dm => { delete dm[tabId]; }));
 
       const ext = getExtFromPath(tab.path);
