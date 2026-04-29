@@ -30,28 +30,38 @@ pub fn set_terminal_theme(theme: term_pro::TerminalTheme) {
     *guard = theme;
 }
 
-fn resolve_shell_path() -> String {
+fn resolve_shell_path(shell_override: Option<&str>) -> Result<String, String> {
+    if let Some(shell) = shell_override {
+        let shell = shell.trim();
+        if !shell.is_empty() {
+            if Path::new(shell).exists() {
+                return Ok(shell.to_string());
+            }
+            return Err(format!("Configured shell does not exist: {}", shell));
+        }
+    }
+
     if let Ok(shell) = std::env::var("SHELL") {
         let shell = shell.trim();
         if !shell.is_empty() && Path::new(shell).exists() {
-            return shell.to_string();
+            return Ok(shell.to_string());
         }
     }
 
     #[cfg(target_os = "macos")]
     {
         if Path::new("/bin/zsh").exists() {
-            return "/bin/zsh".to_string();
+            return Ok("/bin/zsh".to_string());
         }
     }
 
     for shell in ["/bin/bash", "/bin/sh"] {
         if Path::new(shell).exists() {
-            return shell.to_string();
+            return Ok(shell.to_string());
         }
     }
 
-    "/bin/sh".to_string()
+    Ok("/bin/sh".to_string())
 }
 
 fn shell_launch_args(shell: &str) -> &'static [&'static str] {
@@ -531,13 +541,14 @@ impl TerminalManager {
         rows: u16,
         cols: u16,
         cwd: Option<String>,
+        shell: Option<String>,
         on_screen: impl Fn(String, TermScreenDelta) + Send + Sync + 'static,
         on_sixel: impl Fn(String, term_pro::SixelImage) + Send + Sync + 'static,
         on_pty_error: impl Fn(String, String) + Send + Sync + 'static,
         on_pty_restart: impl Fn(String, u32) + Send + Sync + 'static,
     ) -> Result<String, String> {
         let pty_system = native_pty_system();
-        let shell = resolve_shell_path();
+        let shell = resolve_shell_path(shell.as_deref())?;
 
         let pair = pty_system
             .openpty(PtySize {
@@ -628,6 +639,7 @@ impl TerminalManager {
         let on_pty_restart_for_reader = on_pty_restart.clone();
         let monitor_for_reader = monitor.clone();
         let cwd_for_reader = cwd.clone();
+        let shell_for_reader = shell.clone();
         let instance_for_reader = instance.clone();
         thread::spawn(move || {
             let mut buf = [0u8; 4096];
@@ -664,7 +676,13 @@ impl TerminalManager {
                                     }
                                 };
 
-                                let shell = resolve_shell_path();
+                                let shell = match resolve_shell_path(Some(&shell_for_reader)) {
+                                    Ok(shell) => shell,
+                                    Err(message) => {
+                                        on_pty_error_for_reader(term_id_for_reader.clone(), message);
+                                        break;
+                                    }
+                                };
                                 let cmd = build_shell_command(&shell, cwd_for_reader.as_deref());
 
                                 let new_child = match pair.slave.spawn_command(cmd) {
@@ -964,6 +982,7 @@ mod tests {
             .spawn(
                 24,
                 80,
+                None,
                 None,
                 move |_id, delta| {
                     let text = delta

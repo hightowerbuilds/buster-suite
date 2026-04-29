@@ -26,11 +26,16 @@ const charWidthCache = new Map<string, number>();
  * Uses Pretext's prepare() for measurement instead of raw OffscreenCanvas.
  */
 export function getCharWidth(fontSize: number = 14): number {
-  const key = `${FONT_FAMILY}:${fontSize}`;
+  return getCharWidthForFont(FONT_FAMILY, fontSize);
+}
+
+export function getCharWidthForFont(fontFamily: string | null | undefined, fontSize: number = 14): number {
+  const family = fontFamily?.trim() || DEFAULT_FONT_FAMILY;
+  const key = `${family}:${fontSize}`;
   let w = charWidthCache.get(key);
   if (w !== undefined) return w;
 
-  const font = `${fontSize}px ${FONT_FAMILY}`;
+  const font = `${fontSize}px ${family}`;
   const seg = prepareWithSegments("M", font);
   const lines = layoutWithLines(seg, Infinity, fontSize);
   w = lines.lines.length > 0 ? Math.floor(lines.lines[0].width) : Math.floor(fontSize * 0.6);

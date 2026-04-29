@@ -34,6 +34,8 @@ function settings(overrides: Partial<AppSettings> = {}): AppSettings {
     blog_theme: "normal",
     show_indent_guides: true,
     show_whitespace: false,
+    terminal_font_family: "",
+    terminal_shell: "",
     terminal_bell_mode: "visual",
     terminal_scrollback_rows: 10_000,
     ai_completion_enabled: true,

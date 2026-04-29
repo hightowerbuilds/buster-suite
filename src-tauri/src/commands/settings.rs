@@ -16,6 +16,12 @@ fn default_auto_save_delay_ms() -> u32 {
 fn default_font_family() -> String {
     "JetBrains Mono, Menlo, Monaco, Consolas, monospace".to_string()
 }
+fn default_terminal_font_family() -> String {
+    String::new()
+}
+fn default_terminal_shell() -> String {
+    String::new()
+}
 fn default_terminal_bell_mode() -> String {
     "visual".to_string()
 }
@@ -100,6 +106,10 @@ pub struct AppSettings {
     pub show_indent_guides: bool,
     #[serde(default)]
     pub show_whitespace: bool,
+    #[serde(default = "default_terminal_font_family")]
+    pub terminal_font_family: String,
+    #[serde(default = "default_terminal_shell")]
+    pub terminal_shell: String,
     #[serde(default = "default_terminal_bell_mode")]
     pub terminal_bell_mode: String,
     #[serde(default = "default_terminal_scrollback_rows")]
@@ -220,6 +230,8 @@ impl Default for AppSettings {
             blog_theme: "normal".to_string(),
             show_indent_guides: true,
             show_whitespace: false,
+            terminal_font_family: default_terminal_font_family(),
+            terminal_shell: default_terminal_shell(),
             terminal_bell_mode: default_terminal_bell_mode(),
             terminal_scrollback_rows: default_terminal_scrollback_rows(),
             ai_completion_enabled: false,
@@ -440,12 +452,16 @@ mod tests {
     #[test]
     fn settings_terminal_fields_round_trip() {
         let mut settings = AppSettings::default();
+        settings.terminal_font_family = "Berkeley Mono, monospace".to_string();
+        settings.terminal_shell = "/bin/zsh".to_string();
         settings.terminal_bell_mode = "audible".to_string();
         settings.terminal_scrollback_rows = 25_000;
 
         let json = serde_json::to_string(&settings).unwrap();
         let decoded: AppSettings = serde_json::from_str(&json).unwrap();
 
+        assert_eq!(decoded.terminal_font_family, "Berkeley Mono, monospace");
+        assert_eq!(decoded.terminal_shell, "/bin/zsh");
         assert_eq!(decoded.terminal_bell_mode, "audible");
         assert_eq!(decoded.terminal_scrollback_rows, 25_000);
     }
@@ -463,6 +479,8 @@ mod tests {
 
         let decoded: AppSettings = serde_json::from_str(json).unwrap();
 
+        assert_eq!(decoded.terminal_font_family, "");
+        assert_eq!(decoded.terminal_shell, "");
         assert_eq!(decoded.terminal_bell_mode, "visual");
         assert_eq!(decoded.terminal_scrollback_rows, 10_000);
     }

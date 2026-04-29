@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import CanvasSurface from "./CanvasSurface";
 import { useBuster } from "../lib/buster-context";
-import { getCharWidth } from "../editor/text-measure";
+import { DEFAULT_FONT_FAMILY, getCharWidthForFont } from "../editor/text-measure";
 import { showToast } from "./CanvasToasts";
 import { showError } from "../lib/notify";
 import ContextMenu, { type ContextMenuState } from "./ContextMenu";
@@ -105,6 +105,9 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   const termA11y = createTerminalA11y();
 
   function fontSize() { return settings().font_size; }
+  function terminalFontFamily() {
+    return settings().terminal_font_family?.trim() || settings().font_family || DEFAULT_FONT_FAMILY;
+  }
 
   function maxScrollbackRows() {
     const rows = settings().terminal_scrollback_rows ?? 10_000;
@@ -112,7 +115,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   }
 
   function measureChar() {
-    charWidth = getCharWidth(fontSize());
+    charWidth = getCharWidthForFont(terminalFontFamily(), fontSize());
     charHeight = fontSize() + 4;
   }
 
@@ -217,7 +220,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     // Render state bridge for the extracted render module
     const rs: TermRenderState = {
       cells, cursorRow, cursorCol, charWidth, charHeight,
-      cursorStyle,
+      cursorStyle, fontFamily: terminalFontFamily(),
       termRows, termCols, isFocused: isFocused && (!settings().cursor_blink || cursorBlinkVisible), scrollOffset,
       searchVisible, searchMatches, searchMatchIdx,
       bellFlashUntil, sixelImages, sixelBitmapCache,
@@ -664,7 +667,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     }, 530);
 
     // Try to create WebGL renderer — falls back to Canvas 2D silently
-    gpuCtx = TERMINAL_WEBGL_ENABLED ? TerminalGLContext.tryCreate(fontSize(), FONT_FAMILY) : null;
+    gpuCtx = TERMINAL_WEBGL_ENABLED ? TerminalGLContext.tryCreate(fontSize(), terminalFontFamily()) : null;
     if (gpuCtx) {
       // Insert WebGL canvas before the 2D canvas and hide the 2D fallback
       containerRef.insertBefore(gpuCtx.canvas, canvasRef);
@@ -749,6 +752,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
         rows: termRows,
         cols: termCols,
         cwd: props.cwd || null,
+        shell: settings().terminal_shell?.trim() || null,
       });
       props.onTermIdReady(props.termTabId, ptyId);
       // The initial delta from Rust fires during spawn (before ptyId is set),

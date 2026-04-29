@@ -57,7 +57,7 @@ Expanding beyond one-terminal-per-tab.
 - [ ] **Terminal tab strip** — a lightweight tab bar within the terminal panel for switching between multiple shells without using editor tabs
 - [ ] **Drag-and-drop terminal reordering** — rearrange terminal tabs/panes by dragging
 - [ ] **Named terminals** — allow users to name terminal instances ("server", "build", "tests") for easy identification
-- [ ] **Default shell configuration** — setting to override the auto-detected shell
+- [x] **Default shell configuration** — setting can override the auto-detected shell for new terminal sessions
 - [ ] **Shell profiles** — save configurations (shell, CWD, env vars, name) and launch from a menu
 
 ---
@@ -66,7 +66,7 @@ Expanding beyond one-terminal-per-tab.
 
 Polish that makes daily terminal use more comfortable.
 
-- [ ] **Font family selection** — allow users to choose a different font for the terminal (currently shares the editor's monospace font)
+- [x] **Font family selection** — terminal can inherit the editor font or use a separate monospace stack
 - [ ] **Font ligature support** — render programming ligatures in terminal output
 - [ ] **Per-terminal theme override** — currently theme is global; allow individual terminals to have different color schemes
 - [ ] **Scrollback search improvements** — add match count display ("3/17"), persistent search history, and incremental search-as-you-type highlighting

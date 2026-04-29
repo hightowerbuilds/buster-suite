@@ -12,6 +12,7 @@ pub fn terminal_spawn(
     rows: u16,
     cols: u16,
     cwd: Option<String>,
+    shell: Option<String>,
 ) -> Result<String, String> {
     let app_handle = app.clone();
     let app_sixel = app.clone();
@@ -21,6 +22,7 @@ pub fn terminal_spawn(
         rows,
         cols,
         cwd,
+        shell,
         move |id, delta| {
             let bin = encode_delta_binary(&delta);
             let b64 = STANDARD.encode(&bin);

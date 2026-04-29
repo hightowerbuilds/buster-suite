@@ -23,6 +23,8 @@ type SettingsItem =
   | { id: string; type: "number"; key: keyof AppSettings; label: string; description: string; min: number; max: number; step: number }
   | { id: string; type: "theme" }
   | { id: string; type: "font_family" }
+  | { id: string; type: "terminal_font_family" }
+  | { id: string; type: "terminal_shell" }
   | { id: string; type: "effect"; key: keyof AppSettings; label: string; description: string }
   | { id: string; type: "blog_theme" }
   | { id: string; type: "terminal_bell" }
@@ -48,6 +50,8 @@ const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "auto_save_delay_ms", type: "number", key: "auto_save_delay_ms", label: "Auto Save Delay", description: "Milliseconds to wait after the last edit before saving", min: 500, max: 10000, step: 500 },
   { id: "line_numbers", type: "toggle", key: "line_numbers", label: "Line Numbers", description: "Show line numbers in the gutter" },
   { id: "autocomplete", type: "toggle", key: "autocomplete", label: "Autocomplete", description: "Suggest words as you type (Ctrl+Space to trigger)" },
+  { id: "terminal_font_family", type: "terminal_font_family" },
+  { id: "terminal_shell", type: "terminal_shell" },
   { id: "terminal_scrollback_rows", type: "number", key: "terminal_scrollback_rows", label: "Terminal Scrollback", description: "Rows retained in terminal history", min: 1000, max: 100000, step: 1000 },
   { id: "terminal_bell", type: "terminal_bell" },
   { id: "ui_zoom", type: "number", key: "ui_zoom", label: "UI Zoom", description: "Scale the entire interface (Cmd+/Cmd-)", min: 50, max: 200, step: 10 },
@@ -63,6 +67,14 @@ const FONT_PRESETS = [
   "SF Mono, Menlo, Monaco, Consolas, monospace",
   "Fira Code, JetBrains Mono, monospace",
   "Cascadia Code, JetBrains Mono, monospace",
+];
+
+const TERMINAL_FONT_PRESETS = [
+  "",
+  DEFAULT_FONT_FAMILY,
+  "Menlo, Monaco, Consolas, monospace",
+  "SF Mono, Menlo, Monaco, Consolas, monospace",
+  "Berkeley Mono, JetBrains Mono, monospace",
 ];
 
 // --- Canvas checkbox component ---
@@ -402,6 +414,71 @@ const SettingsPanel: Component<SettingsPanelProps> = (props) => {
                       onClick={() => update("font_family", font)}
                     >
                       {font.split(",")[0]}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      case "terminal_font_family": {
+        const current = () => props.settings.terminal_font_family ?? "";
+        const effective = () => current().trim() || props.settings.font_family || DEFAULT_FONT_FAMILY;
+        return (
+          <div class="settings-row-content settings-font-content">
+            <div class="settings-info">
+              <span class="settings-label">Terminal Font Family</span>
+              <span class="settings-desc">Optional monospace stack for terminal canvases</span>
+            </div>
+            <div class="settings-font-controls">
+              <input
+                class="settings-font-input"
+                value={current()}
+                placeholder={effective()}
+                spellcheck={false}
+                onChange={(e) => update("terminal_font_family", e.currentTarget.value)}
+              />
+              <div class="settings-font-presets">
+                <For each={TERMINAL_FONT_PRESETS}>
+                  {(font) => (
+                    <button
+                      class={`settings-theme-btn ${current() === font ? "settings-theme-btn-active" : ""}`}
+                      onClick={() => update("terminal_font_family", font)}
+                    >
+                      {font ? font.split(",")[0] : "Editor Font"}
+                    </button>
+                  )}
+                </For>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      case "terminal_shell": {
+        const current = () => props.settings.terminal_shell ?? "";
+        return (
+          <div class="settings-row-content settings-font-content">
+            <div class="settings-info">
+              <span class="settings-label">Terminal Shell</span>
+              <span class="settings-desc">Optional shell path for new terminal sessions</span>
+            </div>
+            <div class="settings-font-controls">
+              <input
+                class="settings-font-input"
+                value={current()}
+                placeholder="Auto"
+                spellcheck={false}
+                onChange={(e) => update("terminal_shell", e.currentTarget.value.trim())}
+              />
+              <div class="settings-font-presets">
+                <For each={["", "/bin/zsh", "/bin/bash", "/bin/sh"]}>
+                  {(shell) => (
+                    <button
+                      class={`settings-theme-btn ${current() === shell ? "settings-theme-btn-active" : ""}`}
+                      onClick={() => update("terminal_shell", shell)}
+                    >
+                      {shell || "Auto"}
                     </button>
                   )}
                 </For>

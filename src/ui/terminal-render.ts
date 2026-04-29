@@ -3,7 +3,7 @@
  * Extracted from CanvasTerminal.tsx.
  */
 
-import { FONT_FAMILY, measureTextWidth } from "../editor/text-measure";
+import { measureTextWidth } from "../editor/text-measure";
 import type { TerminalGLContext, FontVariant } from "./terminal-webgl";
 import type { TermCell, TerminalCursorStyle } from "./terminal-binary";
 import type { ThemePalette } from "../lib/theme";
@@ -13,6 +13,7 @@ export interface TermRenderState {
   cursorRow: number;
   cursorCol: number;
   cursorStyle: TerminalCursorStyle;
+  fontFamily: string;
   charWidth: number;
   charHeight: number;
   termRows: number;
@@ -61,7 +62,7 @@ export function renderWebGL(w: number, h: number, gpu: TerminalGLContext, deps: 
   const cw = state.charWidth;
   const ch = state.charHeight;
 
-  gpu.beginFrame(w, h, p.editorBg, fs, FONT_FAMILY);
+  gpu.beginFrame(w, h, p.editorBg, fs, state.fontFamily);
 
   if (state.cells.length === 0) return;
   const visibleRows = deps.getVisibleRows();
@@ -313,7 +314,7 @@ export function renderCanvas2D(w: number, h: number, canvas: HTMLCanvasElement, 
   }
 
   // Text
-  const baseFont = `${fs}px ${FONT_FAMILY}`;
+  const baseFont = `${fs}px ${state.fontFamily}`;
   ctx.textBaseline = "top";
   for (let row = 0; row < visibleRows.length; row++) {
     const rowCells = visibleRows[row];
@@ -326,7 +327,7 @@ export function renderCanvas2D(w: number, h: number, canvas: HTMLCanvasElement, 
       const cellW = cell.width === 2 ? cw * 2 : cw;
       const weight = cell.bold ? "bold " : "";
       const style = cell.italic ? "italic " : "";
-      const cellFont = (weight || style) ? `${style}${weight}${fs}px ${FONT_FAMILY}` : baseFont;
+      const cellFont = (weight || style) ? `${style}${weight}${fs}px ${state.fontFamily}` : baseFont;
       const fgColor = cell.faint
         ? `rgba(${cell.fg[0]}, ${cell.fg[1]}, ${cell.fg[2]}, 0.5)`
         : `rgb(${cell.fg[0]}, ${cell.fg[1]}, ${cell.fg[2]})`;
@@ -383,7 +384,7 @@ export function renderCanvas2D(w: number, h: number, canvas: HTMLCanvasElement, 
   // Scroll indicator
   if (state.scrollOffset > 0) {
     const label = `\u2191 ${state.scrollOffset} lines`;
-    const smallFont = `${fs - 2}px ${FONT_FAMILY}`;
+    const smallFont = `${fs - 2}px ${state.fontFamily}`;
     ctx.font = smallFont;
     const tw = measureTextWidth(label, smallFont);
     ctx.fillStyle = p.surface1;

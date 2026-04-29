@@ -100,6 +100,8 @@ export interface AppSettings {
   blog_theme: string;
   show_indent_guides: boolean;
   show_whitespace: boolean;
+  terminal_font_family: string;
+  terminal_shell: string;
   terminal_bell_mode: string;
   terminal_scrollback_rows: number;
   ai_completion_enabled: boolean;
