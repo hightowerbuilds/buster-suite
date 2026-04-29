@@ -62,12 +62,22 @@ const DEFAULT_SETTINGS: AppSettings = {
   blog_theme: "normal",
   show_indent_guides: true,
   show_whitespace: false,
+  terminal_bell_mode: "visual",
+  terminal_scrollback_rows: 10_000,
   ai_completion_enabled: false,
   ai_provider: "ollama",
   ai_api_key: "",
   ai_model: "claude-haiku-4-5-20250514",
   ai_local_model: "gemma3:4b",
   ai_ollama_url: "http://localhost:11434",
+  ai_stop_on_newline: true,
+  ai_debounce_local_ms: 1500,
+  ai_debounce_cloud_ms: 500,
+  ai_min_prefix_chars: 3,
+  ai_cache_enabled: true,
+  ai_cache_size: 24,
+  ai_disabled_languages: [],
+  ai_token_budget_monthly: 0,
 };
 
 const RECENT_FILES_KEY = "buster-recent-files";

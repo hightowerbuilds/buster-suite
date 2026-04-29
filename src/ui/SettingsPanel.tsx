@@ -25,6 +25,7 @@ type SettingsItem =
   | { id: string; type: "font_family" }
   | { id: string; type: "effect"; key: keyof AppSettings; label: string; description: string }
   | { id: string; type: "blog_theme" }
+  | { id: string; type: "terminal_bell" }
 ;
 
 // Color/visual settings first, then text/editor settings, then agent settings
@@ -47,6 +48,8 @@ const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "auto_save_delay_ms", type: "number", key: "auto_save_delay_ms", label: "Auto Save Delay", description: "Milliseconds to wait after the last edit before saving", min: 500, max: 10000, step: 500 },
   { id: "line_numbers", type: "toggle", key: "line_numbers", label: "Line Numbers", description: "Show line numbers in the gutter" },
   { id: "autocomplete", type: "toggle", key: "autocomplete", label: "Autocomplete", description: "Suggest words as you type (Ctrl+Space to trigger)" },
+  { id: "terminal_scrollback_rows", type: "number", key: "terminal_scrollback_rows", label: "Terminal Scrollback", description: "Rows retained in terminal history", min: 1000, max: 100000, step: 1000 },
+  { id: "terminal_bell", type: "terminal_bell" },
   { id: "ui_zoom", type: "number", key: "ui_zoom", label: "UI Zoom", description: "Scale the entire interface (Cmd+/Cmd-)", min: 50, max: 200, step: 10 },
 ];
 
@@ -447,6 +450,27 @@ const SettingsPanel: Component<SettingsPanelProps> = (props) => {
                   >{t.label}</button>
                 )}
               </For>
+            </div>
+          </div>
+        );
+      }
+      case "terminal_bell": {
+        const current = () => props.settings.terminal_bell_mode || "visual";
+        return (
+          <div class="settings-row-content">
+            <div class="settings-info">
+              <span class="settings-label">Terminal Bell</span>
+              <span class="settings-desc">How terminal BEL events are handled</span>
+            </div>
+            <div class="settings-theme-btns">
+              {(["visual", "audible", "off"] as const).map((mode) => (
+                <button
+                  class={`settings-theme-btn ${current() === mode ? "settings-theme-btn-active" : ""}`}
+                  onClick={() => update("terminal_bell_mode", mode)}
+                >
+                  {mode === "visual" ? "Visual" : mode === "audible" ? "Audible" : "Off"}
+                </button>
+              ))}
             </div>
           </div>
         );

@@ -44,7 +44,7 @@ export interface KeyboardDeps {
   lineHeight: () => number;
   tabTrapping: () => boolean;
   indentUnit: () => string;
-  settings: () => { tab_size: number };
+  settings: () => { tab_size: number; ai_completion_enabled?: boolean };
   clearHighlightCache: () => void;
   ensureCursorVisible: () => void;
   scheduleRender: () => void;
@@ -79,7 +79,12 @@ export function handleEditorKeyDown(e: KeyboardEvent, deps: KeyboardDeps) {
     if (e.key === "Escape") { e.preventDefault(); ac.dismiss(); return; }
   }
 
-  if (e.ctrlKey && e.key === " ") { e.preventDefault(); ac.trigger(); return; }
+  if (e.ctrlKey && e.key === " ") {
+    e.preventDefault();
+    if (deps.settings().ai_completion_enabled) ghost.trigger();
+    else ac.trigger();
+    return;
+  }
   if (e.key === "F12") { e.preventDefault(); hover.goToDefinition(); return; }
 
   // Code action menu

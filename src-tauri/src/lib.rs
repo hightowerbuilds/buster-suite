@@ -408,6 +408,9 @@ pub fn run() {
             // AI Completion
             commands::ai_completion::ai_completion_request,
             commands::ai_completion::ai_completion_cancel,
+            commands::ai_completion::ai_completion_ollama_models,
+            commands::ai_completion::ai_completion_validate_provider,
+            commands::ai_completion::ai_completion_usage,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -1,7 +1,7 @@
 # AI Code Completion Roadmap
 
-> Status: In Progress
-> Last updated: 2026-04-24
+> Status: Implementation Complete; live provider checks pending
+> Last updated: 2026-04-28
 
 Ghost text / inline AI code completion with support for local models (Ollama) and cloud providers (Anthropic, OpenAI). Streams tokens as they arrive so users see completions building in real-time.
 
@@ -21,7 +21,7 @@ User types → dismiss ghost + cancel in-flight → debounce (500ms cloud / 1.5s
 
 **Frontend:** `editor-ghost-text.ts` — debounce, invoke, listen for streamed `ai-completion-token` events, accumulate into PhantomText for canvas rendering.
 
-**Settings:** `ai_completion_enabled`, `ai_provider`, `ai_api_key`, `ai_model`, `ai_local_model`, `ai_ollama_url` added to AppSettings (Rust + TypeScript).
+**Settings:** AI provider, model, debounce, stop-on-newline, caching, language allow/disable, token budget, and secure key persistence fields are part of AppSettings (Rust + TypeScript). On macOS, cloud API keys are persisted via Keychain instead of `settings.json`.
 
 ---
 
@@ -31,7 +31,7 @@ User types → dismiss ghost + cancel in-flight → debounce (500ms cloud / 1.5s
 - [x] Add matching fields to TypeScript `AppSettings` interface
 - [x] Add defaults to `BusterProvider.tsx`
 - [x] Add AI Settings tab (`AiSettingsPanel.tsx`) with toggle, provider selector, API key input, model selection, Ollama status check
-- [ ] Test: settings save/load round-trip with new fields
+- [x] Test: settings serialization/default round-trip with AI fields
 
 ---
 
@@ -44,7 +44,8 @@ User types → dismiss ghost + cancel in-flight → debounce (500ms cloud / 1.5s
 - [x] Build FIM prompt: `prefix` + `suffix` context from request
 - [x] Configure for slow hardware: `num_predict: 20`, `num_ctx: 512`, `temperature: 0.2`
 - [x] Register `AiCompletionState` and commands in `lib.rs`
-- [ ] Test: verify streaming tokens arrive from Ollama via Tauri events
+- [x] Unit tests: Ollama stream line parsing and prompt construction
+- [ ] Live test: verify streaming tokens arrive from Ollama via Tauri events
 
 ---
 
@@ -59,7 +60,8 @@ User types → dismiss ghost + cancel in-flight → debounce (500ms cloud / 1.5s
 - [x] Cancel in-flight on dismiss, new keystroke, or tab switch
 - [x] Generate `PhantomText[]` from accumulated text (handle multiline)
 - [x] Thread `settings` accessor through `CanvasEditor.tsx` to ghost text deps
-- [ ] Test end-to-end: type in editor → pause → ghost text appears → Tab accepts
+- [x] Unit tests: context extraction, short-prefix guard, disabled-language guard, cache keys
+- [ ] Live test: type in editor → pause → ghost text appears → Tab accepts
 
 ---
 
@@ -77,24 +79,24 @@ User types → dismiss ghost + cancel in-flight → debounce (500ms cloud / 1.5s
 
 ## Phase 5: Polish & Optimization
 
-- [ ] Stop-on-newline option for single-line completions (especially useful for slow local models)
-- [ ] Improved FIM prompt with language-specific formatting
-- [ ] Loading indicator (subtle dot animation or cursor change while waiting)
-- [ ] Graceful handling: Ollama not running, API key missing, network errors — all silent, no error toasts
-- [ ] Tune debounce timers based on real-world testing
-- [ ] Skip requests for very short prefixes (< 2 non-whitespace chars)
-- [ ] Cache recent completions to avoid re-requesting the same context
+- [x] Stop-on-newline option for single-line completions (especially useful for slow local models)
+- [x] Improved FIM prompt with language-specific formatting
+- [x] Loading indicator (subtle ghost dot while waiting)
+- [x] Graceful handling: Ollama not running, API key missing, network errors — silent inline failure path
+- [x] Tune debounce timers via settings (`ai_debounce_local_ms`, `ai_debounce_cloud_ms`)
+- [x] Skip requests for very short prefixes (`ai_min_prefix_chars`)
+- [x] Cache recent completions to avoid re-requesting the same context
 
 ---
 
 ## Phase 6: Security & UX
 
-- [ ] Secure API key storage via OS keychain (`keyring` crate or `tauri-plugin-secure-storage`)
-- [ ] API key validation button in settings (test the key against the provider)
-- [ ] Token usage tracking / budget display
-- [ ] Per-language enable/disable (e.g. disable for markdown, enable for code)
-- [ ] Keyboard shortcut to manually trigger completion (e.g. Ctrl+Space when no LSP)
-- [ ] Settings UI: show Ollama connection status and available models
+- [x] Secure API key storage via macOS Keychain
+- [x] API key validation button in settings (test the key against the provider)
+- [x] Token usage tracking / budget display
+- [x] Per-language enable/disable (e.g. disable for markdown, enable for code)
+- [x] Keyboard shortcut to manually trigger completion (`Ctrl+Space` when AI completion is enabled)
+- [x] Settings UI: show Ollama connection status and available models
 
 ---
 

@@ -1,5 +1,10 @@
-import { Component, Show, createSignal, onMount } from "solid-js";
+import { Component, For, Show, createSignal, onMount } from "solid-js";
 import type { AppSettings } from "../lib/ipc";
+import {
+  aiCompletionOllamaModels,
+  aiCompletionUsage,
+  aiCompletionValidateProvider,
+} from "../lib/ipc";
 
 interface AiSettingsPanelProps {
   settings: AppSettings;
@@ -15,26 +20,56 @@ const PROVIDERS = [
 const AiSettingsPanel: Component<AiSettingsPanelProps> = (props) => {
   const [ollamaStatus, setOllamaStatus] = createSignal<"checking" | "connected" | "disconnected">("checking");
   const [ollamaModels, setOllamaModels] = createSignal<string[]>([]);
+  const [validationStatus, setValidationStatus] = createSignal<"idle" | "checking" | "ok" | "error">("idle");
+  const [validationMessage, setValidationMessage] = createSignal("");
+  const [usage, setUsage] = createSignal<{ estimated_tokens: number; monthly_budget: number } | null>(null);
 
   function update(patch: Partial<AppSettings>) {
     props.onChange({ ...props.settings, ...patch });
   }
 
-  // Check Ollama connection on mount
-  onMount(async () => {
+  async function refreshOllamaModels() {
+    setOllamaStatus("checking");
     try {
-      const resp = await fetch(`${props.settings.ai_ollama_url}/api/tags`);
-      if (resp.ok) {
-        const data = await resp.json();
-        const models = (data.models || []).map((m: { name: string }) => m.name);
-        setOllamaModels(models);
-        setOllamaStatus("connected");
-      } else {
-        setOllamaStatus("disconnected");
-      }
+      const models = await aiCompletionOllamaModels(props.settings.ai_ollama_url);
+      setOllamaModels(models);
+      setOllamaStatus("connected");
     } catch {
       setOllamaStatus("disconnected");
     }
+  }
+
+  async function validateProvider() {
+    setValidationStatus("checking");
+    setValidationMessage("");
+    try {
+      const model = props.settings.ai_provider === "ollama"
+        ? props.settings.ai_local_model
+        : props.settings.ai_model;
+      const result = await aiCompletionValidateProvider({
+        provider: props.settings.ai_provider,
+        api_key: props.settings.ai_api_key,
+        model,
+        ollama_url: props.settings.ai_ollama_url,
+      });
+      setValidationStatus(result.ok ? "ok" : "error");
+      setValidationMessage(result.message);
+    } catch (err) {
+      setValidationStatus("error");
+      setValidationMessage(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  function toggleDisabledLanguage(languageId: string) {
+    const disabled = new Set(props.settings.ai_disabled_languages ?? []);
+    if (disabled.has(languageId)) disabled.delete(languageId);
+    else disabled.add(languageId);
+    update({ ai_disabled_languages: [...disabled].sort() });
+  }
+
+  onMount(() => {
+    refreshOllamaModels();
+    aiCompletionUsage().then(setUsage).catch(() => {});
   });
 
   return (
@@ -82,10 +117,13 @@ const AiSettingsPanel: Component<AiSettingsPanelProps> = (props) => {
               <div class="ai-settings-label">
                 <span class="ai-settings-title">Status</span>
               </div>
-              <span class={`ai-status ai-status-${ollamaStatus()}`}>
-                {ollamaStatus() === "checking" ? "Checking..." :
-                 ollamaStatus() === "connected" ? "Connected" : "Not Running"}
-              </span>
+              <div class="ai-status-actions">
+                <span class={`ai-status ai-status-${ollamaStatus()}`}>
+                  {ollamaStatus() === "checking" ? "Checking..." :
+                   ollamaStatus() === "connected" ? "Connected" : "Not Running"}
+                </span>
+                <button class="ai-action-btn" onClick={refreshOllamaModels}>Refresh</button>
+              </div>
             </div>
 
             <div class="ai-settings-row">
@@ -203,13 +241,170 @@ const AiSettingsPanel: Component<AiSettingsPanelProps> = (props) => {
           </div>
         </Show>
 
+        <div class="ai-settings-section">
+          <h3>Behavior</h3>
+
+          <div class="ai-settings-row">
+            <div class="ai-settings-label">
+              <span class="ai-settings-title">Stop On Newline</span>
+              <span class="ai-settings-desc">Keep inline suggestions to one line</span>
+            </div>
+            <button
+              class={`ai-toggle ${props.settings.ai_stop_on_newline ? "ai-toggle-on" : ""}`}
+              onClick={() => update({ ai_stop_on_newline: !props.settings.ai_stop_on_newline })}
+            >
+              {props.settings.ai_stop_on_newline ? "ON" : "OFF"}
+            </button>
+          </div>
+
+          <div class="ai-settings-row">
+            <div class="ai-settings-label">
+              <span class="ai-settings-title">Local Debounce</span>
+              <span class="ai-settings-desc">Milliseconds before Ollama requests</span>
+            </div>
+            <input
+              class="ai-input ai-input-small"
+              type="number"
+              min="0"
+              max="5000"
+              step="100"
+              value={props.settings.ai_debounce_local_ms}
+              onInput={(e) => update({ ai_debounce_local_ms: Number(e.currentTarget.value) || 0 })}
+            />
+          </div>
+
+          <div class="ai-settings-row">
+            <div class="ai-settings-label">
+              <span class="ai-settings-title">Cloud Debounce</span>
+              <span class="ai-settings-desc">Milliseconds before cloud requests</span>
+            </div>
+            <input
+              class="ai-input ai-input-small"
+              type="number"
+              min="0"
+              max="5000"
+              step="100"
+              value={props.settings.ai_debounce_cloud_ms}
+              onInput={(e) => update({ ai_debounce_cloud_ms: Number(e.currentTarget.value) || 0 })}
+            />
+          </div>
+
+          <div class="ai-settings-row">
+            <div class="ai-settings-label">
+              <span class="ai-settings-title">Minimum Prefix</span>
+              <span class="ai-settings-desc">Non-whitespace characters before requesting</span>
+            </div>
+            <input
+              class="ai-input ai-input-small"
+              type="number"
+              min="0"
+              max="80"
+              step="1"
+              value={props.settings.ai_min_prefix_chars}
+              onInput={(e) => update({ ai_min_prefix_chars: Number(e.currentTarget.value) || 0 })}
+            />
+          </div>
+
+          <div class="ai-settings-row">
+            <div class="ai-settings-label">
+              <span class="ai-settings-title">Completion Cache</span>
+              <span class="ai-settings-desc">Reuse recent matching suggestions</span>
+            </div>
+            <button
+              class={`ai-toggle ${props.settings.ai_cache_enabled ? "ai-toggle-on" : ""}`}
+              onClick={() => update({ ai_cache_enabled: !props.settings.ai_cache_enabled })}
+            >
+              {props.settings.ai_cache_enabled ? "ON" : "OFF"}
+            </button>
+          </div>
+
+          <Show when={props.settings.ai_cache_enabled}>
+            <div class="ai-settings-row">
+              <div class="ai-settings-label">
+                <span class="ai-settings-title">Cache Size</span>
+                <span class="ai-settings-desc">Number of suggestions to keep</span>
+              </div>
+              <input
+                class="ai-input ai-input-small"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={props.settings.ai_cache_size}
+                onInput={(e) => update({ ai_cache_size: Number(e.currentTarget.value) || 0 })}
+              />
+            </div>
+          </Show>
+        </div>
+
+        <div class="ai-settings-section">
+          <h3>Languages</h3>
+          <div class="ai-language-grid">
+            <For each={[
+              ["typescript", "TypeScript"],
+              ["javascript", "JavaScript"],
+              ["rust", "Rust"],
+              ["python", "Python"],
+              ["go", "Go"],
+              ["html", "HTML"],
+              ["css", "CSS"],
+              ["json", "JSON"],
+              ["markdown", "Markdown"],
+            ]}>
+              {([id, label]) => {
+                const enabled = () => !(props.settings.ai_disabled_languages ?? []).includes(id);
+                return (
+                  <button
+                    class={`ai-language-btn ${enabled() ? "ai-language-enabled" : ""}`}
+                    onClick={() => toggleDisabledLanguage(id)}
+                  >
+                    {label}
+                  </button>
+                );
+              }}
+            </For>
+          </div>
+        </div>
+
+        <div class="ai-settings-section">
+          <h3>Validation & Usage</h3>
+          <div class="ai-settings-row">
+            <div class="ai-settings-label">
+              <span class="ai-settings-title">Provider Check</span>
+              <span class="ai-settings-desc">{validationMessage() || "Validate the current provider configuration"}</span>
+            </div>
+            <button class="ai-action-btn" disabled={validationStatus() === "checking"} onClick={validateProvider}>
+              {validationStatus() === "checking" ? "Checking..." : "Validate"}
+            </button>
+          </div>
+
+          <div class="ai-settings-row">
+            <div class="ai-settings-label">
+              <span class="ai-settings-title">Monthly Budget</span>
+              <span class="ai-settings-desc">
+                {usage()
+                  ? `${usage()!.estimated_tokens} estimated tokens used`
+                  : "Estimated from streamed completion text"}
+              </span>
+            </div>
+            <input
+              class="ai-input ai-input-small"
+              type="number"
+              min="0"
+              step="1000"
+              value={props.settings.ai_token_budget_monthly}
+              onInput={(e) => update({ ai_token_budget_monthly: Number(e.currentTarget.value) || 0 })}
+            />
+          </div>
+        </div>
+
         <div class="ai-settings-section ai-settings-info">
           <h3>How it works</h3>
           <p>After you stop typing, Buster sends the surrounding code context to your chosen AI provider. Suggestions appear as ghost text — press <kbd>Tab</kbd> to accept or keep typing to dismiss.</p>
           <p>
             <strong>Local models</strong> run entirely on your machine via Ollama. No data leaves your computer.
             <br />
-            <strong>Cloud models</strong> send code context to the provider's API. Your API key is stored locally in settings.
+            <strong>Cloud models</strong> send code context to the provider's API. On macOS, your API key is stored in Keychain.
           </p>
         </div>
       </Show>

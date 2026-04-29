@@ -70,11 +70,9 @@ impl SixelParser {
     /// The data should be the content between DCS...q and ST,
     /// not including the DCS introducer or ST terminator.
     pub fn decode(&mut self, data: &[u8], row: u16, col: u16) -> SixelImage {
-        let mut width: u32 = 0;
         let mut height: u32 = 6; // minimum sixel height is 6 pixels
         let mut x: u32 = 0;
         let mut y: u32 = 0;
-        let mut color_idx: usize = 0;
         let mut max_x: u32 = 0;
 
         // First pass: determine dimensions
@@ -87,7 +85,7 @@ impl SixelParser {
                     i += 1;
                     let (reg, adv) = parse_number(&data[i..]);
                     i += adv;
-                    color_idx = reg as usize;
+                    let color_idx = reg as usize;
 
                     // Check if this is a color definition (has semicolons)
                     if i < data.len() && data[i] == b';' {
@@ -150,7 +148,7 @@ impl SixelParser {
             }
         }
 
-        width = max_x;
+        let width = max_x;
         if width == 0 || height == 0 {
             return SixelImage {
                 width: 0,
@@ -165,7 +163,7 @@ impl SixelParser {
         let mut pixels = vec![0u8; (width * height * 4) as usize];
         x = 0;
         y = 0;
-        color_idx = 0;
+        let mut color_idx = 0;
         i = 0;
 
         while i < data.len() {

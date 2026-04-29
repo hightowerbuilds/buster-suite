@@ -12,6 +12,12 @@ import { mapSpecialKey, mapCtrlKey, mapAltKey, encodeSgrMouse, encodeDefaultMous
 import { searchTerminalRows, scrollToMatch } from "./terminal-search";
 import { decodeBinaryDelta, type TermCell, type TermScreenDelta } from "./terminal-binary";
 import { renderWebGL as doRenderWebGL, renderCanvas2D as doRenderCanvas2D, type TermRenderState, type TermRenderDeps } from "./terminal-render";
+import {
+  findTerminalWordBounds,
+  getTerminalSelectedText,
+  normalizeTerminalSelection,
+  terminalRowText,
+} from "./terminal-selection";
 
 const TERMINAL_WEBGL_ENABLED = false;
 
@@ -39,8 +45,6 @@ interface CanvasTerminalProps {
 }
 
 import { createTerminalA11y } from "./terminal-a11y";
-// Cursor is always visible when focused — no blink
-
 const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   const { store } = useBuster();
   const settings = () => store.settings;
@@ -51,6 +55,9 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   let hiddenInput: HTMLTextAreaElement | undefined;
   let animId: number;
   let isFocused = false;
+  let cursorBlinkVisible = true;
+  let cursorBlinkTimer: ReturnType<typeof setInterval> | undefined;
+  let bellAudioContext: AudioContext | null = null;
   let ptyId: string | null = null;
   let unlisten: (() => void) | null = null;
   let resizeObs: ResizeObserver | null = null;
@@ -65,13 +72,13 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   let needsRedraw = true;
   let selStart: { row: number; col: number } | null = null;
   let selEnd: { row: number; col: number } | null = null;
+  let selectedTextSnapshot = "";
   let isSelecting = false;
   let scrollbackNormal: TermCell[][] = [];
   let scrollbackAlt: TermCell[][] = [];
   let inAltScreen = false;
   let scrollOffset = 0;
   let isComposingInput = false;
-  const MAX_SCROLLBACK = 10_000;
   const MAX_SIXEL_CACHE = 64;
   let mouseMode = "none";
   let mouseEncoding = "default";
@@ -93,6 +100,11 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   const termA11y = createTerminalA11y();
 
   function fontSize() { return settings().font_size; }
+
+  function maxScrollbackRows() {
+    const rows = settings().terminal_scrollback_rows ?? 10_000;
+    return Math.max(1_000, Math.min(100_000, rows));
+  }
 
   function measureChar() {
     charWidth = getCharWidth(fontSize());
@@ -119,30 +131,22 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   }
 
   function normalizedSelection() {
-    if (!selStart || !selEnd) return null;
-    let s = selStart, e = selEnd;
-    if (s.row > e.row || (s.row === e.row && s.col > e.col)) {
-      [s, e] = [e, s];
-    }
-    return { start: s, end: e };
+    return normalizeTerminalSelection(selStart, selEnd);
   }
 
   function getSelectedText(): string {
-    const sel = normalizedSelection();
-    if (!sel) return "";
-    const rows = scrollOffset === 0 ? cells : getVisibleRows();
-    let text = "";
-    for (let row = sel.start.row; row <= sel.end.row; row++) {
-      const rowCells = rows[row];
-      if (!rowCells) continue;
-      const cs = row === sel.start.row ? sel.start.col : 0;
-      const ce = row === sel.end.row ? sel.end.col : rowCells.length - 1;
-      for (let col = cs; col <= ce; col++) {
-        text += rowCells[col]?.ch || " ";
-      }
-      if (row < sel.end.row) text += "\n";
-    }
-    return text.replace(/\s+$/gm, "");
+    if (selectedTextSnapshot && !isSelecting) return selectedTextSnapshot;
+    return getTerminalSelectedText(getVisibleRows(), selStart, selEnd);
+  }
+
+  function clearSelection() {
+    selStart = null;
+    selEnd = null;
+    selectedTextSnapshot = "";
+  }
+
+  function updateSelectionSnapshot() {
+    selectedTextSnapshot = getTerminalSelectedText(getVisibleRows(), selStart, selEnd);
   }
 
   function rowTextMatch(a: TermCell[] | undefined, b: TermCell[] | undefined): boolean {
@@ -208,7 +212,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     // Render state bridge for the extracted render module
     const rs: TermRenderState = {
       cells, cursorRow, cursorCol, charWidth, charHeight,
-      termRows, termCols, isFocused, scrollOffset,
+      termRows, termCols, isFocused: isFocused && (!settings().cursor_blink || cursorBlinkVisible), scrollOffset,
       searchVisible, searchMatches, searchMatchIdx,
       bellFlashUntil, sixelImages, sixelBitmapCache,
     };
@@ -302,6 +306,26 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
     e.preventDefault(); // Suppress native text selection
     scrollOffset = 0;
+    selectedTextSnapshot = "";
+    const visibleRows = getVisibleRows();
+    if (e.detail >= 3) {
+      const lineLength = terminalRowText(visibleRows[pos.row]).length || termCols;
+      selStart = { row: pos.row, col: 0 };
+      selEnd = { row: pos.row, col: Math.max(0, lineLength - 1) };
+      updateSelectionSnapshot();
+      needsRedraw = true; scheduleTermRender();
+      hiddenInput?.focus();
+      return;
+    }
+    if (e.detail === 2) {
+      const bounds = findTerminalWordBounds(terminalRowText(visibleRows[pos.row]), pos.col);
+      selStart = { row: pos.row, col: bounds.start };
+      selEnd = { row: pos.row, col: bounds.end };
+      updateSelectionSnapshot();
+      needsRedraw = true; scheduleTermRender();
+      hiddenInput?.focus();
+      return;
+    }
     selStart = pos;
     selEnd = pos;
     isSelecting = true;
@@ -345,8 +369,9 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     if (!isSelecting) return;
     isSelecting = false;
     if (selStart && selEnd && selStart.row === selEnd.row && selStart.col === selEnd.col) {
-      selStart = null;
-      selEnd = null;
+      clearSelection();
+    } else {
+      updateSelectionSnapshot();
     }
     needsRedraw = true; scheduleTermRender();
     hiddenInput?.focus();
@@ -369,8 +394,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     if (text && ptyId) {
       const data = bracketedPaste ? `\x1b[200~${text}\x1b[201~` : text;
       invoke("terminal_write", { termId: ptyId, data }).catch((e) => console.warn("Terminal IPC error:", e));
-      selStart = null;
-      selEnd = null;
+      clearSelection();
     }
   }
 
@@ -391,8 +415,6 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     } else {
       scrollOffset = Math.max(0, scrollOffset - lines);
     }
-    selStart = null;
-    selEnd = null;
     needsRedraw = true; scheduleTermRender();
   }
 
@@ -412,6 +434,14 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       requestAnimationFrame(() => {
         containerRef?.querySelector<HTMLInputElement>(".term-search-input")?.focus();
       });
+      return;
+    }
+
+    // Cmd+K: clear screen and local scrollback
+    if (e.metaKey && e.key === "k") {
+      e.preventDefault();
+      e.stopPropagation();
+      clearTerminal();
       return;
     }
 
@@ -456,8 +486,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
     // Any other key clears selection and returns to live view
     if (selStart) {
-      selStart = null;
-      selEnd = null;
+      clearSelection();
       needsRedraw = true; scheduleTermRender();
     }
     if (scrollOffset > 0) {
@@ -524,7 +553,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       if (newRow0 && rowTextMatch(cells[1], newRow0) && cells[0]) {
         const sb = inAltScreen ? scrollbackAlt : scrollbackNormal;
         sb.push(cells[0]);
-        if (sb.length > MAX_SCROLLBACK) sb.shift();
+        while (sb.length > maxScrollbackRows()) sb.shift();
       }
     }
 
@@ -549,7 +578,12 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
 
     // Bell flash
     if (d.bell) {
-      bellFlashUntil = performance.now() + 150;
+      const mode = settings().terminal_bell_mode || "visual";
+      if (mode === "visual") {
+        bellFlashUntil = performance.now() + 150;
+      } else if (mode === "audible") {
+        playTerminalBell();
+      }
     }
 
     needsRedraw = true; scheduleTermRender();
@@ -562,10 +596,54 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     applyEncodedDelta(data);
   }
 
+  function clearTerminal() {
+    scrollbackNormal = [];
+    scrollbackAlt = [];
+    sixelImages = [];
+    sixelBitmapCache.clear();
+    scrollOffset = 0;
+    clearSelection();
+    if (ptyId) invoke("terminal_write", { termId: ptyId, data: "\x0c" }).catch(() => {});
+    needsRedraw = true; scheduleTermRender();
+  }
+
+  function playTerminalBell() {
+    try {
+      bellAudioContext ??= new AudioContext();
+      const now = bellAudioContext.currentTime;
+      const oscillator = bellAudioContext.createOscillator();
+      const gain = bellAudioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(660, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      oscillator.connect(gain);
+      gain.connect(bellAudioContext.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.13);
+    } catch {
+      bellFlashUntil = performance.now() + 150;
+    }
+  }
+
   onMount(async () => {
     if (!canvasRef || !containerRef) return;
 
     measureChar();
+    cursorBlinkTimer = setInterval(() => {
+      if (!isFocused || !settings().cursor_blink) {
+        if (!cursorBlinkVisible) {
+          cursorBlinkVisible = true;
+          needsRedraw = true;
+          scheduleTermRender();
+        }
+        return;
+      }
+      cursorBlinkVisible = !cursorBlinkVisible;
+      needsRedraw = true;
+      scheduleTermRender();
+    }, 530);
 
     // Try to create WebGL renderer — falls back to Canvas 2D silently
     gpuCtx = TERMINAL_WEBGL_ENABLED ? TerminalGLContext.tryCreate(fontSize(), FONT_FAMILY) : null;
@@ -683,6 +761,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     onCleanup(() => {
       cancelAnimationFrame(animId);
       clearTimeout(resizeTimer);
+      if (cursorBlinkTimer) clearInterval(cursorBlinkTimer);
       document.removeEventListener("mousemove", handleDocMouseMove);
       document.removeEventListener("mouseup", handleDocMouseUp);
       if (unlisten) unlisten();
@@ -692,6 +771,10 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       if (unlistenTheme) unlistenTheme();
       if (resizeObs) resizeObs.disconnect();
       termA11y.cleanup();
+      if (bellAudioContext) {
+        bellAudioContext.close().catch(() => {});
+        bellAudioContext = null;
+      }
       if (gpuCtx) { gpuCtx.dispose(); gpuCtx = null; }
       if (sixelOverlay) { sixelOverlay.remove(); sixelOverlay = null; }
       sixelImages = [];
@@ -750,9 +833,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
           }).catch(() => {});
         }},
         { separator: true },
-        { label: "Clear", action: () => {
-          if (ptyId) invoke("terminal_write", { termId: ptyId, data: "\x0c" }).catch(() => {});
-        }},
+        { label: "Clear", action: clearTerminal },
       ],
     });
   }
@@ -826,11 +907,13 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
         },
         onFocus: () => {
           isFocused = true;
+          cursorBlinkVisible = true;
           needsRedraw = true;
           scheduleTermRender();
         },
         onBlur: () => {
           isFocused = false;
+          cursorBlinkVisible = true;
           needsRedraw = true;
           scheduleTermRender();
         },

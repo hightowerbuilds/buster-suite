@@ -1,7 +1,7 @@
 # Terminal Roadmap
 
 > Status: In Progress
-> Last updated: 2026-04-24
+> Last updated: 2026-04-28
 
 The terminal is in solid shape — PTY management, crash recovery, 256/truecolor, mouse forwarding, scrollback, search, sixel images, and accessibility are all working. This roadmap covers maintenance items, missing standard features, and quality-of-life improvements.
 
@@ -13,11 +13,12 @@ Addressing known limitations in the current implementation.
 
 - [ ] **Strikethrough / faint text rendering** — the backend hardcodes these to `false` (vt100 crate v0.15 limitation); upgrade the vt100 crate or parse SGR 2/9 manually
 - [ ] **Cursor style support (DECSCUSR)** — parse cursor style escape sequences so shells/apps can request block, beam, or underline cursors; currently always renders block
-- [ ] **Double/triple-click word/line selection** — double-click should select a word, triple-click should select the full line; currently only single-click drag selection works
-- [ ] **Selection preservation on output** — selection currently clears when new terminal output arrives; preserve selection until user explicitly clears it
+- [x] **Double/triple-click word/line selection** — double-click selects a word, triple-click selects the full line
+- [x] **Selection preservation on output** — copied text is snapshotted after selection so new output does not change what copy returns
 - [ ] **WebGL rendering evaluation** — code exists but is disabled (`TERMINAL_WEBGL_ENABLED = false`); evaluate performance benefit, fix issues, or remove dead code
 - [ ] **Resize edge cases** — verify resize behavior is smooth during rapid window resizing and when switching between split panel configurations
-- [ ] **Bell behavior configuration** — currently visual-only (flash); add option for audible bell, or disable bell entirely
+- [x] **Bell behavior configuration** — visual, audible, and off modes are configurable in Settings
+- [x] **Sixel warning cleanup** — removed unused first-pass assignments in the sixel parser so terminal tests run without those warnings
 
 ---
 
@@ -26,12 +27,12 @@ Addressing known limitations in the current implementation.
 Features users expect from any modern integrated terminal.
 
 - [ ] **Clickable URLs / hyperlinks** — detect URLs in terminal output and make them clickable to open in browser; also support OSC 8 hyperlink sequences
-- [ ] **Cursor blink** — add a blinking cursor option (currently always solid block)
+- [x] **Cursor blink** — terminal cursor now respects the existing cursor blink setting
 - [ ] **Blinking text attribute** — render SGR 5/6 blink (can use a subtle animation or steady highlight)
 - [ ] **Overline attribute** — render SGR 53 overline decoration
 - [ ] **Custom underline colors** — support SGR 58/59 for colored underlines (currently uses foreground color)
 - [ ] **Box drawing optimization** — render box drawing characters (U+2500-U+257F) with pixel-perfect lines instead of font glyphs for cleaner TUI rendering
-- [ ] **Smart word boundaries** — when double-click selecting, treat shell metacharacters (`;`, `|`, `&`, etc.) as word delimiters
+- [x] **Smart word boundaries** — when double-click selecting, treat shell metacharacters (`;`, `|`, `&`, etc.) as word delimiters
 
 ---
 
@@ -69,9 +70,9 @@ Polish that makes daily terminal use more comfortable.
 - [ ] **Font ligature support** — render programming ligatures in terminal output
 - [ ] **Per-terminal theme override** — currently theme is global; allow individual terminals to have different color schemes
 - [ ] **Scrollback search improvements** — add match count display ("3/17"), persistent search history, and incremental search-as-you-type highlighting
-- [ ] **Scrollback size configuration** — currently fixed at 10,000 rows; make it a user setting
+- [x] **Scrollback size configuration** — configurable from 1,000 to 100,000 rows in Settings
 - [ ] **Copy with formatting** — option to copy terminal text with ANSI colors preserved (for pasting into documents or bug reports)
-- [ ] **Clear terminal** — Cmd+K to clear scrollback and reset the screen
+- [x] **Clear terminal** — Cmd+K clears local scrollback and sends clear-screen to the shell
 - [ ] **Broadcast input** — type into multiple terminal instances simultaneously (useful for multi-server commands)
 - [ ] **Terminal screenshot / export** — capture terminal contents as text or image
 

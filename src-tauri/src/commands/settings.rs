@@ -4,10 +4,24 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{command, AppHandle, Manager};
 
-fn default_true() -> bool { true }
-fn default_zoom() -> u32 { 100 }
-fn default_auto_save_delay_ms() -> u32 { 1500 }
-fn default_font_family() -> String { "JetBrains Mono, Menlo, Monaco, Consolas, monospace".to_string() }
+fn default_true() -> bool {
+    true
+}
+fn default_zoom() -> u32 {
+    100
+}
+fn default_auto_save_delay_ms() -> u32 {
+    1500
+}
+fn default_font_family() -> String {
+    "JetBrains Mono, Menlo, Monaco, Consolas, monospace".to_string()
+}
+fn default_terminal_bell_mode() -> String {
+    "visual".to_string()
+}
+fn default_terminal_scrollback_rows() -> u32 {
+    10_000
+}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EditorLanguageSettings {
@@ -86,6 +100,10 @@ pub struct AppSettings {
     pub show_indent_guides: bool,
     #[serde(default)]
     pub show_whitespace: bool,
+    #[serde(default = "default_terminal_bell_mode")]
+    pub terminal_bell_mode: String,
+    #[serde(default = "default_terminal_scrollback_rows")]
+    pub terminal_scrollback_rows: u32,
     // AI Completion
     #[serde(default)]
     pub ai_completion_enabled: bool,
@@ -99,20 +117,74 @@ pub struct AppSettings {
     pub ai_local_model: String,
     #[serde(default = "default_ollama_url")]
     pub ai_ollama_url: String,
+    #[serde(default = "default_true")]
+    pub ai_stop_on_newline: bool,
+    #[serde(default = "default_ai_debounce_local_ms")]
+    pub ai_debounce_local_ms: u32,
+    #[serde(default = "default_ai_debounce_cloud_ms")]
+    pub ai_debounce_cloud_ms: u32,
+    #[serde(default = "default_ai_min_prefix_chars")]
+    pub ai_min_prefix_chars: u32,
+    #[serde(default = "default_true")]
+    pub ai_cache_enabled: bool,
+    #[serde(default = "default_ai_cache_size")]
+    pub ai_cache_size: u32,
+    #[serde(default)]
+    pub ai_disabled_languages: Vec<String>,
+    /// Monthly token budget. 0 means unlimited.
+    #[serde(default = "default_ai_token_budget_monthly")]
+    pub ai_token_budget_monthly: u32,
 }
 
-fn default_ai_provider() -> String { "ollama".to_string() }
-fn default_ai_model() -> String { "claude-haiku-4-5-20250514".to_string() }
-fn default_ollama_model() -> String { "gemma3:4b".to_string() }
-fn default_ollama_url() -> String { "http://localhost:11434".to_string() }
+fn default_ai_provider() -> String {
+    "ollama".to_string()
+}
+fn default_ai_model() -> String {
+    "claude-haiku-4-5-20250514".to_string()
+}
+fn default_ollama_model() -> String {
+    "gemma3:4b".to_string()
+}
+fn default_ollama_url() -> String {
+    "http://localhost:11434".to_string()
+}
+fn default_ai_debounce_local_ms() -> u32 {
+    1500
+}
+fn default_ai_debounce_cloud_ms() -> u32 {
+    500
+}
+fn default_ai_min_prefix_chars() -> u32 {
+    3
+}
+fn default_ai_cache_size() -> u32 {
+    24
+}
+fn default_ai_token_budget_monthly() -> u32 {
+    0
+}
 
-fn default_theme_mode() -> String { "dark".to_string() }
-fn default_hue() -> i32 { -1 }
-fn default_agent_tool_calls() -> u32 { 50 }
-fn default_agent_writes() -> u32 { 10 }
-fn default_agent_commands() -> u32 { 5 }
-fn default_agent_timeout() -> u32 { 300 }
-fn default_blog_theme() -> String { "normal".to_string() }
+fn default_theme_mode() -> String {
+    "dark".to_string()
+}
+fn default_hue() -> i32 {
+    -1
+}
+fn default_agent_tool_calls() -> u32 {
+    50
+}
+fn default_agent_writes() -> u32 {
+    10
+}
+fn default_agent_commands() -> u32 {
+    5
+}
+fn default_agent_timeout() -> u32 {
+    300
+}
+fn default_blog_theme() -> String {
+    "normal".to_string()
+}
 
 impl Default for AppSettings {
     fn default() -> Self {
@@ -148,21 +220,72 @@ impl Default for AppSettings {
             blog_theme: "normal".to_string(),
             show_indent_guides: true,
             show_whitespace: false,
+            terminal_bell_mode: default_terminal_bell_mode(),
+            terminal_scrollback_rows: default_terminal_scrollback_rows(),
             ai_completion_enabled: false,
             ai_provider: "ollama".to_string(),
             ai_api_key: String::new(),
             ai_model: "claude-haiku-4-5-20250514".to_string(),
             ai_local_model: "gemma3:4b".to_string(),
             ai_ollama_url: "http://localhost:11434".to_string(),
+            ai_stop_on_newline: true,
+            ai_debounce_local_ms: 1500,
+            ai_debounce_cloud_ms: 500,
+            ai_min_prefix_chars: 3,
+            ai_cache_enabled: true,
+            ai_cache_size: 24,
+            ai_disabled_languages: Vec::new(),
+            ai_token_budget_monthly: 0,
         }
     }
 }
 
 const MAX_RECENT_FOLDERS: usize = 5;
+const AI_KEYCHAIN_SERVICE: &str = "com.hightowerbuilds.buster.ai-completion";
 
 fn settings_path(app: &AppHandle) -> PathBuf {
-    let dir = app.path().app_config_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let dir = app
+        .path()
+        .app_config_dir()
+        .unwrap_or_else(|_| PathBuf::from("."));
     dir.join("settings.json")
+}
+
+#[cfg(target_os = "macos")]
+fn save_ai_api_key(provider: &str, api_key: &str) -> Result<(), String> {
+    if provider != "anthropic" && provider != "openai" {
+        return Ok(());
+    }
+    if api_key.trim().is_empty() {
+        return Ok(());
+    }
+    security_framework::passwords::set_generic_password(
+        AI_KEYCHAIN_SERVICE,
+        provider,
+        api_key.as_bytes(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn save_ai_api_key(_provider: &str, _api_key: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn load_ai_api_key(provider: &str) -> String {
+    if provider != "anthropic" && provider != "openai" {
+        return String::new();
+    }
+    security_framework::passwords::get_generic_password(AI_KEYCHAIN_SERVICE, provider)
+        .ok()
+        .and_then(|bytes| String::from_utf8(bytes).ok())
+        .unwrap_or_default()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn load_ai_api_key(_provider: &str) -> String {
+    String::new()
 }
 
 #[command]
@@ -170,7 +293,14 @@ pub fn load_settings(app: AppHandle) -> AppSettings {
     let path = settings_path(&app);
     if path.exists() {
         match fs::read_to_string(&path) {
-            Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+            Ok(content) => {
+                let mut settings: AppSettings = serde_json::from_str(&content).unwrap_or_default();
+                let key = load_ai_api_key(&settings.ai_provider);
+                if !key.is_empty() {
+                    settings.ai_api_key = key;
+                }
+                settings
+            }
             Err(_) => AppSettings::default(),
         }
     } else {
@@ -195,7 +325,10 @@ pub fn save_settings(app: AppHandle, settings: AppSettings) -> Result<(), String
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    save_ai_api_key(&settings.ai_provider, &settings.ai_api_key)?;
+    let mut persisted = settings;
+    persisted.ai_api_key.clear();
+    let json = serde_json::to_string_pretty(&persisted).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -271,13 +404,18 @@ mod tests {
     fn settings_font_and_syntax_colors_round_trip() {
         let mut settings = AppSettings::default();
         settings.font_family = "Fira Code, monospace".to_string();
-        settings.syntax_colors.insert("keyword".to_string(), "#ff00aa".to_string());
+        settings
+            .syntax_colors
+            .insert("keyword".to_string(), "#ff00aa".to_string());
 
         let json = serde_json::to_string(&settings).unwrap();
         let decoded: AppSettings = serde_json::from_str(&json).unwrap();
 
         assert_eq!(decoded.font_family, "Fira Code, monospace");
-        assert_eq!(decoded.syntax_colors.get("keyword"), Some(&"#ff00aa".to_string()));
+        assert_eq!(
+            decoded.syntax_colors.get("keyword"),
+            Some(&"#ff00aa".to_string())
+        );
     }
 
     #[test]
@@ -297,5 +435,100 @@ mod tests {
         assert_eq!(decoded.auto_save, false);
         assert_eq!(decoded.auto_save_delay_ms, 1500);
         assert!(decoded.language_settings.is_empty());
+    }
+
+    #[test]
+    fn settings_terminal_fields_round_trip() {
+        let mut settings = AppSettings::default();
+        settings.terminal_bell_mode = "audible".to_string();
+        settings.terminal_scrollback_rows = 25_000;
+
+        let json = serde_json::to_string(&settings).unwrap();
+        let decoded: AppSettings = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(decoded.terminal_bell_mode, "audible");
+        assert_eq!(decoded.terminal_scrollback_rows, 25_000);
+    }
+
+    #[test]
+    fn settings_missing_terminal_fields_use_defaults() {
+        let json = r#"{
+            "word_wrap": true,
+            "font_size": 14,
+            "tab_size": 4,
+            "minimap": false,
+            "line_numbers": true,
+            "cursor_blink": true
+        }"#;
+
+        let decoded: AppSettings = serde_json::from_str(json).unwrap();
+
+        assert_eq!(decoded.terminal_bell_mode, "visual");
+        assert_eq!(decoded.terminal_scrollback_rows, 10_000);
+    }
+
+    #[test]
+    fn settings_ai_completion_round_trip() {
+        let mut settings = AppSettings::default();
+        settings.ai_completion_enabled = true;
+        settings.ai_provider = "openai".to_string();
+        settings.ai_api_key = "sk-test".to_string();
+        settings.ai_model = "gpt-4o-mini".to_string();
+        settings.ai_local_model = "qwen2.5-coder:7b".to_string();
+        settings.ai_ollama_url = "http://127.0.0.1:11434".to_string();
+        settings.ai_stop_on_newline = false;
+        settings.ai_debounce_local_ms = 1200;
+        settings.ai_debounce_cloud_ms = 300;
+        settings.ai_min_prefix_chars = 5;
+        settings.ai_cache_enabled = false;
+        settings.ai_cache_size = 8;
+        settings.ai_disabled_languages = vec!["markdown".to_string(), "plaintext".to_string()];
+        settings.ai_token_budget_monthly = 250_000;
+
+        let json = serde_json::to_string(&settings).unwrap();
+        let decoded: AppSettings = serde_json::from_str(&json).unwrap();
+
+        assert!(decoded.ai_completion_enabled);
+        assert_eq!(decoded.ai_provider, "openai");
+        assert_eq!(decoded.ai_api_key, "sk-test");
+        assert_eq!(decoded.ai_model, "gpt-4o-mini");
+        assert_eq!(decoded.ai_local_model, "qwen2.5-coder:7b");
+        assert_eq!(decoded.ai_ollama_url, "http://127.0.0.1:11434");
+        assert!(!decoded.ai_stop_on_newline);
+        assert_eq!(decoded.ai_debounce_local_ms, 1200);
+        assert_eq!(decoded.ai_debounce_cloud_ms, 300);
+        assert_eq!(decoded.ai_min_prefix_chars, 5);
+        assert!(!decoded.ai_cache_enabled);
+        assert_eq!(decoded.ai_cache_size, 8);
+        assert_eq!(decoded.ai_disabled_languages, vec!["markdown", "plaintext"]);
+        assert_eq!(decoded.ai_token_budget_monthly, 250_000);
+    }
+
+    #[test]
+    fn settings_missing_ai_completion_fields_use_defaults() {
+        let json = r#"{
+            "word_wrap": true,
+            "font_size": 14,
+            "tab_size": 4,
+            "minimap": false,
+            "line_numbers": true,
+            "cursor_blink": true
+        }"#;
+
+        let decoded: AppSettings = serde_json::from_str(json).unwrap();
+
+        assert!(!decoded.ai_completion_enabled);
+        assert_eq!(decoded.ai_provider, "ollama");
+        assert_eq!(decoded.ai_model, "claude-haiku-4-5-20250514");
+        assert_eq!(decoded.ai_local_model, "gemma3:4b");
+        assert_eq!(decoded.ai_ollama_url, "http://localhost:11434");
+        assert!(decoded.ai_stop_on_newline);
+        assert_eq!(decoded.ai_debounce_local_ms, 1500);
+        assert_eq!(decoded.ai_debounce_cloud_ms, 500);
+        assert_eq!(decoded.ai_min_prefix_chars, 3);
+        assert!(decoded.ai_cache_enabled);
+        assert_eq!(decoded.ai_cache_size, 24);
+        assert!(decoded.ai_disabled_languages.is_empty());
+        assert_eq!(decoded.ai_token_budget_monthly, 0);
     }
 }
