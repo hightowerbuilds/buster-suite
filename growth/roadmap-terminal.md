@@ -26,7 +26,7 @@ Addressing known limitations in the current implementation.
 
 Features users expect from any modern integrated terminal.
 
-- [ ] **Clickable URLs / hyperlinks** — detect URLs in terminal output and make them clickable to open in browser; also support OSC 8 hyperlink sequences
+- [ ] **Clickable URLs / hyperlinks** — plain `http://` and `https://` URLs are clickable; OSC 8 hyperlink sequences still pending
 - [x] **Cursor blink** — terminal cursor now respects the existing cursor blink setting
 - [ ] **Blinking text attribute** — render SGR 5/6 blink (can use a subtle animation or steady highlight)
 - [ ] **Overline attribute** — render SGR 53 overline decoration

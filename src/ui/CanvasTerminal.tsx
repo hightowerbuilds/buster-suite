@@ -1,6 +1,7 @@
 import { Component, createEffect, on, onMount, onCleanup, createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import CanvasSurface from "./CanvasSurface";
 import { useBuster } from "../lib/buster-context";
 import { getCharWidth } from "../editor/text-measure";
@@ -18,6 +19,7 @@ import {
   normalizeTerminalSelection,
   terminalRowText,
 } from "./terminal-selection";
+import { terminalUrlAt } from "./terminal-links";
 
 const TERMINAL_WEBGL_ENABLED = false;
 
@@ -92,6 +94,8 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
   let searchCaseSensitive = false;
   let searchMatches: { row: number; col: number; len: number }[] = [];
   let searchMatchIdx = -1;
+  let hoverUrl: string | null = null;
+  let suppressNextClick = false;
 
   // WebGL renderer (null = Canvas 2D fallback)
   let gpuCtx: TerminalGLContext | null = null;
@@ -294,6 +298,13 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     }
   }
 
+  function updateHoverUrl(e: MouseEvent) {
+    if (!containerRef || mouseMode !== "none" || isSelecting) return;
+    const match = terminalUrlAt(getVisibleRows(), mouseToCell(e));
+    hoverUrl = match?.url ?? null;
+    containerRef.style.cursor = hoverUrl ? "pointer" : "default";
+  }
+
   function handleMouseDown(e: MouseEvent) {
     if (e.button !== 0) return;
     const pos = mouseToCell(e);
@@ -309,6 +320,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     selectedTextSnapshot = "";
     const visibleRows = getVisibleRows();
     if (e.detail >= 3) {
+      suppressNextClick = true;
       const lineLength = terminalRowText(visibleRows[pos.row]).length || termCols;
       selStart = { row: pos.row, col: 0 };
       selEnd = { row: pos.row, col: Math.max(0, lineLength - 1) };
@@ -318,6 +330,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       return;
     }
     if (e.detail === 2) {
+      suppressNextClick = true;
       const bounds = findTerminalWordBounds(terminalRowText(visibleRows[pos.row]), pos.col);
       selStart = { row: pos.row, col: bounds.start };
       selEnd = { row: pos.row, col: bounds.end };
@@ -346,6 +359,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       }
       return;
     }
+    updateHoverUrl(e);
     // Selection moves are handled by document-level listener
   }
 
@@ -372,6 +386,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       clearSelection();
     } else {
       updateSelectionSnapshot();
+      suppressNextClick = true;
     }
     needsRedraw = true; scheduleTermRender();
     hiddenInput?.focus();
@@ -770,6 +785,7 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
       if (unlistenError) unlistenError();
       if (unlistenTheme) unlistenTheme();
       if (resizeObs) resizeObs.disconnect();
+      if (containerRef) containerRef.style.cursor = "";
       termA11y.cleanup();
       if (bellAudioContext) {
         bellAudioContext.close().catch(() => {});
@@ -787,7 +803,20 @@ const CanvasTerminal: Component<CanvasTerminalProps> = (props) => {
     });
   });
 
-  function handleClick() {
+  function handleClick(e: MouseEvent) {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      hiddenInput?.focus();
+      return;
+    }
+    if (mouseMode === "none") {
+      const match = terminalUrlAt(getVisibleRows(), mouseToCell(e));
+      if (match) {
+        openUrl(match.url).catch((err) => console.warn("Open terminal URL failed:", err));
+        hiddenInput?.focus();
+        return;
+      }
+    }
     hiddenInput?.focus();
   }
 
